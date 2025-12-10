@@ -2,7 +2,7 @@ FastAPI
 uvicorn[standard]
 SQLAlchemy
 python-dotenv
-google-generativeai
+anthropic
 SpeechRecognition
 pydub
 PyPDF2

@@ -1,5 +1,5 @@
 from typing import Dict, Any, Optional, List
-import google.generativeai as genai
+import anthropic
 import os
 import re
 import json
@@ -7,8 +7,8 @@ import asyncio
 from datetime import datetime
 from .prompt_templates import templates, domain_tasks, task_keywords, language_keywords
 
-# Configure Gemini AI
-genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
+# Configure Anthropic API
+anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
 
 
 class IntelligentAgent:
@@ -21,8 +21,9 @@ class IntelligentAgent:
     """
 
     def __init__(self):
-        # Use Gemini 2.0 Flash - fast, efficient, and widely available
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
+        # Use Claude 3.5 Sonnet - fast, efficient, and great for prompt optimization
+        self.client = anthropic_client
+        self.model = "claude-sonnet-4-20250514"
         self.conversation_history: List[Dict[str, str]] = []
 
     async def process_message(
@@ -251,20 +252,22 @@ class IntelligentAgent:
     async def _have_conversation(self, user_input: str, thinking_steps: List[Dict]) -> Dict[str, Any]:
         """Handle casual conversation naturally."""
         try:
-            # Use Gemini for natural conversation
-            conversation_prompt = f"""You are LUKTHAN, a friendly and intelligent AI assistant.
+            # Use Claude for natural conversation
+            system_prompt = """You are LUKTHAN, a friendly and intelligent AI assistant.
 You have a warm personality and enjoy conversing with humans.
 You're knowledgeable but humble, and you communicate naturally like a thoughtful friend.
-
-User message: {user_input}
-
 Respond naturally and warmly. Keep your response concise but meaningful.
 If they greet you, greet them back warmly.
 If they ask about you, share a bit about yourself as LUKTHAN.
 Be genuine, helpful, and personable."""
 
-            response = self.model.generate_content(conversation_prompt)
-            message = response.text
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=1024,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_input}]
+            )
+            message = response.content[0].text
 
             # Store in conversation history
             self.conversation_history.append({
@@ -308,18 +311,20 @@ Be genuine, helpful, and personable."""
     async def _answer_question(self, user_input: str, thinking_steps: List[Dict]) -> Dict[str, Any]:
         """Answer thoughtful questions about life, philosophy, etc."""
         try:
-            question_prompt = f"""You are LUKTHAN, a wise and thoughtful AI assistant.
-Someone has asked you a meaningful question. Answer with wisdom, empathy, and insight.
+            system_prompt = """You are LUKTHAN, a wise and thoughtful AI assistant.
+Answer with wisdom, empathy, and insight.
 Be genuine and thoughtful - draw from philosophy, psychology, and human experience.
 Don't be preachy, just be real and helpful.
-
-Question: {user_input}
-
 Provide a thoughtful, genuine response that could actually help or enlighten someone.
 Keep it conversational but meaningful. Around 2-4 paragraphs."""
 
-            response = self.model.generate_content(question_prompt)
-            message = response.text
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=2048,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_input}]
+            )
+            message = response.content[0].text
 
             return {
                 "response": message,
@@ -356,21 +361,25 @@ Keep it conversational but meaningful. Around 2-4 paragraphs."""
     ) -> Dict[str, Any]:
         """Smart hybrid response - figure out the best way to help."""
         try:
-            smart_prompt = f"""You are LUKTHAN, an intelligent AI assistant that helps users in the most appropriate way.
-
-User's message: {user_input}
-{f"Additional context: {context[:500]}" if context else ""}
-
+            system_prompt = """You are LUKTHAN, an intelligent AI assistant that helps users in the most appropriate way.
 Analyze what the user needs and respond appropriately:
 - If they need help with a task, guide them
 - If they're asking for information, provide it
 - If they want to create an AI prompt, help them formulate it
 - If they just want to chat, be conversational
-
 Respond naturally and helpfully. Be concise but thorough."""
 
-            response = self.model.generate_content(smart_prompt)
-            message = response.text
+            user_message = user_input
+            if context:
+                user_message += f"\n\nAdditional context: {context[:500]}"
+
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=2048,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_message}]
+            )
+            message = response.content[0].text
 
             # Check if response looks like it should be a prompt
             if any(kw in user_input.lower() for kw in ["create", "write", "make", "build", "help me"]):
