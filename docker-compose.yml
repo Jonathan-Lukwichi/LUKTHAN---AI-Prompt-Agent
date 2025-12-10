@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DATABASE_URL=sqlite:///./lukthan.db
+      - DEBUG=false
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=http://localhost:3000,http://localhost:80
+    volumes:
+      - ./backend/lukthan.db:/app/lukthan.db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8000/api
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+# Optional: Use with docker-compose --profile db up for PostgreSQL
+  # postgres:
+  #   image: postgres:15-alpine
+  #   profiles: ["db"]
+  #   environment:
+  #     POSTGRES_USER: lukthan
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: lukthan
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+# volumes:
+#   postgres_data:

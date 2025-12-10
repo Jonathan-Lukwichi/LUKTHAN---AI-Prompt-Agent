@@ -1,0 +1,13 @@
+FastAPI
+uvicorn[standard]
+SQLAlchemy
+python-dotenv
+google-generativeai
+SpeechRecognition
+pydub
+PyPDF2
+python-docx
+Pillow
+pytesseract
+python-multipart
+aiofiles

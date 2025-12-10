@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(pip install:*)",
+      "Bash(python -m uvicorn:*)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(printf:*)",
+      "Bash(tasklist:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill /F /PID 56488)",
+      "Bash(powershell -Command \"Stop-Process -Id 56488 -Force\")",
+      "Bash(timeout:*)",
+      "Bash(python test_gemini.py:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(del \"c:\\Users\\BIBINBUSINESS\\Downloads\\webnew\\lukthan-ai-prompt-agent\\backend\\test_gemini.py\")",
+      "Bash(python:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
