@@ -1,172 +1,172 @@
-import { useChatStore, type Settings } from '../../stores/chatStore';
-import { Brain, Settings as SettingsIcon, Lightbulb, X, Sparkles } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useChatStore } from '../../stores/chatStore';
+import {
+  getHistory,
+  clearHistory as clearHistoryApi,
+  type HistoryItem
+} from '../../api/client';
+import toast from 'react-hot-toast';
+import {
+  Plus,
+  Clock,
+  MessageSquare,
+  Trash2,
+  ChevronRight,
+  Loader2,
+  Zap
+} from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
-  onToggle: () => void;
+  collapsed?: boolean;
 }
 
-const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
-  const { settings, setSettings, clearMessages } = useChatStore();
+const Sidebar = ({ isOpen, collapsed = false }: SidebarProps) => {
+  const { messages, clearMessages, addMessage } = useChatStore();
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  const handleSettingChange = (key: keyof Settings, value: string) => {
-    setSettings({ [key]: value } as Partial<Settings>);
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setIsLoadingHistory(true);
+      try {
+        const data = await getHistory(10);
+        setHistory(data.sessions);
+      } catch (error) {
+        console.error('Failed to fetch history:', error);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+    fetchHistory();
+  }, [messages.length]);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  const groupedHistory = history.reduce((acc, item) => {
+    const dateLabel = formatDate(item.created_at);
+    if (!acc[dateLabel]) acc[dateLabel] = [];
+    acc[dateLabel].push(item);
+    return acc;
+  }, {} as Record<string, HistoryItem[]>);
+
+  const handleClearHistory = async () => {
+    try {
+      await clearHistoryApi();
+      setHistory([]);
+      clearMessages();
+      toast.success('History cleared');
+    } catch (error) {
+      toast.error('Failed to clear history');
+    }
+  };
+
+  const handleHistoryClick = (item: HistoryItem) => {
+    addMessage({ type: 'user', content: item.raw_prompt });
+    toast.success('Loaded from history');
   };
 
   if (!isOpen) return null;
 
-  return (
-    <aside className="fixed left-0 top-0 h-full w-72 bg-bg-card border-r border-neon-purple/20 flex flex-col z-40">
-      {/* Header */}
-      <div className="p-6 border-b border-neon-purple/20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-cyan to-neon-purple flex items-center justify-center shadow-glow">
-              <Brain className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="font-heading font-bold text-xl bg-gradient-to-r from-neon-cyan to-neon-purple bg-clip-text text-transparent">
-                LUKTHAN
-              </h1>
-              <p className="text-xs text-text-muted">AI Prompt Agent</p>
-            </div>
-          </div>
-          <button
-            onClick={onToggle}
-            className="p-1.5 rounded-lg hover:bg-bg-elevated transition-colors text-text-muted hover:text-text-primary"
-            aria-label="Close sidebar"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Settings */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-4 text-text-secondary">
-            <SettingsIcon className="w-4 h-4" />
-            <span className="text-sm font-semibold uppercase tracking-wider">Settings</span>
-          </div>
-
-          <div className="space-y-4">
-            {/* Domain */}
-            <div>
-              <label className="block text-sm text-text-secondary mb-1.5">Domain</label>
-              <select
-                value={settings.domain}
-                onChange={(e) => handleSettingChange('domain', e.target.value)}
-                className="w-full bg-bg-elevated border border-neon-cyan/30 rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-neon-cyan transition-colors cursor-pointer"
-              >
-                <option value="auto">Auto Detect</option>
-                <option value="research">Research</option>
-                <option value="coding">Coding</option>
-                <option value="data_science">Data Science</option>
-                <option value="general">General</option>
-              </select>
-            </div>
-
-            {/* Target AI */}
-            <div>
-              <label className="block text-sm text-text-secondary mb-1.5">Target AI</label>
-              <select
-                value={settings.target_ai}
-                onChange={(e) => handleSettingChange('target_ai', e.target.value)}
-                className="w-full bg-bg-elevated border border-neon-cyan/30 rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-neon-cyan transition-colors cursor-pointer"
-              >
-                <optgroup label="OpenAI">
-                  <option value="ChatGPT (GPT-4)">ChatGPT (GPT-4)</option>
-                  <option value="ChatGPT (GPT-3.5)">ChatGPT (GPT-3.5)</option>
-                </optgroup>
-                <optgroup label="Anthropic">
-                  <option value="Claude">Claude (Sonnet)</option>
-                  <option value="Claude (Opus)">Claude (Opus)</option>
-                </optgroup>
-                <optgroup label="Google">
-                  <option value="Gemini">Gemini</option>
-                  <option value="Gemini Pro">Gemini Pro</option>
-                </optgroup>
-                <optgroup label="Open Source">
-                  <option value="Llama">Llama</option>
-                  <option value="Mistral">Mistral</option>
-                </optgroup>
-                <optgroup label="Code Assistants">
-                  <option value="Copilot">GitHub Copilot</option>
-                </optgroup>
-              </select>
-            </div>
-
-            {/* Expertise Level */}
-            <div>
-              <label className="block text-sm text-text-secondary mb-1.5">Expertise Level</label>
-              <select
-                value={settings.expertise_level}
-                onChange={(e) => handleSettingChange('expertise_level', e.target.value)}
-                className="w-full bg-bg-elevated border border-neon-cyan/30 rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-neon-cyan transition-colors cursor-pointer"
-              >
-                <option value="Beginner">Beginner - Simple explanations</option>
-                <option value="Intermediate">Intermediate - Some knowledge</option>
-                <option value="Professional">Professional - Industry standard</option>
-                <option value="Expert">Expert - Advanced & in-depth</option>
-              </select>
-            </div>
-
-            {/* Output Language */}
-            <div>
-              <label className="block text-sm text-text-secondary mb-1.5">Output Language</label>
-              <select
-                value={settings.language}
-                onChange={(e) => handleSettingChange('language', e.target.value)}
-                className="w-full bg-bg-elevated border border-neon-cyan/30 rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-neon-cyan transition-colors cursor-pointer"
-              >
-                <option value="English">English</option>
-                <option value="French">French</option>
-                <option value="Spanish">Spanish</option>
-                <option value="German">German</option>
-                <option value="Chinese">Chinese</option>
-                <option value="Japanese">Japanese</option>
-                <option value="Portuguese">Portuguese</option>
-                <option value="Arabic">Arabic</option>
-                <option value="Hindi">Hindi</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Pro Tips */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3 text-text-secondary">
-            <Lightbulb className="w-4 h-4" />
-            <span className="text-sm font-semibold uppercase tracking-wider">Pro Tips</span>
-          </div>
-          <ul className="space-y-2 text-sm text-text-muted">
-            <li className="flex items-start gap-2">
-              <Sparkles className="w-4 h-4 text-neon-cyan mt-0.5 flex-shrink-0" />
-              <span>Be specific about your requirements</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <Sparkles className="w-4 h-4 text-neon-purple mt-0.5 flex-shrink-0" />
-              <span>Add context for better results</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <Sparkles className="w-4 h-4 text-neon-pink mt-0.5 flex-shrink-0" />
-              <span>Upload files to include code or docs</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <Sparkles className="w-4 h-4 text-success mt-0.5 flex-shrink-0" />
-              <span>Use voice input for quick prompts</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-neon-purple/20">
-        <button
+  if (collapsed) {
+    return (
+      <aside className="w-14 bg-[#0a0a1a] border-r border-violet-500/20 flex flex-col h-full py-2">
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
           onClick={clearMessages}
-          className="w-full py-2.5 px-4 text-sm text-text-secondary hover:text-error border border-text-muted/30 hover:border-error/50 rounded-lg transition-colors"
+          className="mx-auto p-2.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-violet-500/20 border border-cyan-500/30 text-cyan-400 hover:shadow-[0_0_15px_rgba(0,255,255,0.3)] transition-all"
         >
-          Clear Conversation
+          <Plus className="w-4 h-4" />
+        </motion.button>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="w-52 bg-gradient-to-b from-[#0a0a1a] to-[#030014] border-r border-violet-500/20 flex flex-col h-full">
+      {/* New Chat Button - Compact */}
+      <div className="p-2">
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={clearMessages}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-semibold text-white text-sm transition-all relative overflow-hidden group"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-violet-500 to-pink-500 opacity-90" />
+          <span className="relative flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            New Chat
+          </span>
+        </motion.button>
+      </div>
+
+      {/* History - Compact */}
+      <div className="flex-1 overflow-y-auto px-2 pb-2">
+        <div className="flex items-center gap-1.5 px-2 py-2 text-gray-500">
+          <Clock className="w-3 h-3" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider">History</span>
+          {isLoadingHistory && <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />}
+        </div>
+
+        {history.length > 0 ? (
+          <div className="space-y-2">
+            {Object.entries(groupedHistory).map(([dateLabel, items]) => (
+              <div key={dateLabel}>
+                <div className="px-2 py-1 text-[10px] text-gray-600">{dateLabel}</div>
+                <div className="space-y-0.5">
+                  {items.map((item) => (
+                    <motion.button
+                      key={item.id}
+                      whileHover={{ x: 2 }}
+                      onClick={() => handleHistoryClick(item)}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-400 hover:text-white rounded-lg transition-all group hover:bg-white/5"
+                    >
+                      <MessageSquare className="w-3 h-3 flex-shrink-0 text-violet-400" />
+                      <span className="truncate flex-1 text-left text-[11px]">{item.raw_prompt}</span>
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="px-2 py-4 text-center">
+            <MessageSquare className="w-5 h-5 text-violet-400 mx-auto mb-1" />
+            <p className="text-[10px] text-gray-500">No history yet</p>
+          </div>
+        )}
+
+        {/* Pro Tip - Very Compact */}
+        <div className="mt-3 rounded-xl p-2.5 bg-gradient-to-br from-violet-500/10 to-cyan-500/5 border border-violet-500/20">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Zap className="w-3 h-3 text-cyan-400" />
+            <span className="text-[10px] font-semibold text-white">Pro Tip</span>
+          </div>
+          <p className="text-[10px] text-gray-400 leading-relaxed">
+            Be specific for <span className="text-cyan-400">better results</span>.
+          </p>
+        </div>
+      </div>
+
+      {/* Footer - Compact */}
+      <div className="p-2 border-t border-violet-500/10">
+        <button
+          onClick={handleClearHistory}
+          disabled={history.length === 0 && messages.length === 0}
+          className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[10px] text-gray-500 hover:text-red-400 rounded-lg transition-all hover:bg-red-500/10 disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <Trash2 className="w-3 h-3" />
+          Clear History
         </button>
       </div>
     </aside>

@@ -136,8 +136,8 @@ async def process_file(file: UploadFile) -> Tuple[str, str]:
         except UnicodeDecodeError:
             try:
                 extracted_text = file_content.decode("latin-1")
-            except:
-                extracted_text = "[Unable to decode file content]"
+            except (UnicodeDecodeError, LookupError) as e:
+                extracted_text = f"[Unable to decode file content: {type(e).__name__}]"
     elif category == "audio":
         extracted_text = "[Audio file - use voice transcription endpoint]"
     else:

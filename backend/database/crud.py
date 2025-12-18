@@ -33,3 +33,33 @@ def get_prompt_versions(db: Session, session_id: int):
 
 def get_prompt_templates(db: Session):
     return db.query(PromptTemplate).all()
+
+
+def get_recent_sessions(db: Session, limit: int = 20):
+    """Get recent prompt sessions ordered by creation date."""
+    return db.query(PromptSession).order_by(PromptSession.created_at.desc()).limit(limit).all()
+
+
+def get_session_with_versions(db: Session, session_id: int):
+    """Get a session with all its versions."""
+    session = db.query(PromptSession).filter(PromptSession.id == session_id).first()
+    if session:
+        versions = db.query(PromptVersion).filter(PromptVersion.session_id == session_id).all()
+        return {"session": session, "versions": versions}
+    return None
+
+
+def delete_session(db: Session, session_id: int):
+    """Delete a session and its versions."""
+    db.query(PromptVersion).filter(PromptVersion.session_id == session_id).delete()
+    db.query(PromptSession).filter(PromptSession.id == session_id).delete()
+    db.commit()
+    return True
+
+
+def clear_all_sessions(db: Session):
+    """Clear all sessions and versions."""
+    db.query(PromptVersion).delete()
+    db.query(PromptSession).delete()
+    db.commit()
+    return True

@@ -5,10 +5,186 @@ import re
 import json
 import asyncio
 from datetime import datetime
-from .prompt_templates import templates, domain_tasks, task_keywords, language_keywords
+from dotenv import load_dotenv
+
+# Domain to task type mapping (inline definitions)
+domain_tasks = {
+    "coding": ["code_generation", "debugging", "code_review", "architecture", "api_design"],
+    "research": ["literature_review", "paper_writing", "methodology", "explanation"],
+    "data_science": ["data_analysis", "ml_model", "data_visualization"],
+    "general": ["general_query", "writing_assistance", "brainstorming"]
+}
+
+# Task type keywords for detection
+task_keywords = {
+    "code_generation": ["write", "create", "implement", "build", "develop", "code", "function", "class", "program"],
+    "debugging": ["debug", "fix", "error", "bug", "issue", "problem", "not working", "crash", "exception"],
+    "code_review": ["review", "check", "analyze code", "improve", "optimize", "refactor"],
+    "architecture": ["design", "architect", "structure", "system", "scalable", "microservice"],
+    "api_design": ["api", "endpoint", "rest", "graphql", "route", "request", "response"],
+    "literature_review": ["literature", "review", "papers", "research", "studies", "academic"],
+    "paper_writing": ["paper", "thesis", "dissertation", "essay", "article", "publication"],
+    "methodology": ["method", "methodology", "approach", "procedure", "study design"],
+    "explanation": ["explain", "what is", "how does", "understand", "concept", "theory"],
+    "data_analysis": ["analyze", "data", "statistics", "trends", "patterns", "insights",
+                      "csv", "clean", "cleaning", "missing", "null", "preprocess", "preprocessing",
+                      "eda", "exploratory", "leakage", "leak", "correlation", "distribution"],
+    "ml_model": ["machine learning", "ml", "model", "predict", "classification", "regression", "neural",
+                 "lstm", "xgboost", "random forest", "gradient boosting", "lightgbm", "catboost",
+                 "train", "training", "validation", "hyperparameter", "forecast", "forecasting",
+                 "deep learning", "tensorflow", "pytorch", "keras", "sklearn", "scikit"],
+    "data_visualization": ["visualize", "chart", "graph", "plot", "dashboard", "visualization"],
+    "general_query": ["help", "question", "information", "tell me", "what", "how", "why"],
+    "writing_assistance": ["write", "draft", "content", "copy", "blog", "email", "message"],
+    "brainstorming": ["ideas", "brainstorm", "suggest", "creative", "options", "possibilities"]
+}
+
+# Programming language detection keywords
+language_keywords = {
+    "python": ["python", "py", "django", "flask", "pandas", "numpy", "pytorch", "tensorflow"],
+    "javascript": ["javascript", "js", "node", "react", "vue", "angular", "express", "npm"],
+    "typescript": ["typescript", "ts", "angular", "nest", "deno"],
+    "java": ["java", "spring", "maven", "gradle", "jvm", "kotlin"],
+    "csharp": ["c#", "csharp", ".net", "dotnet", "asp.net", "unity"],
+    "cpp": ["c++", "cpp", "cmake", "qt", "boost"],
+    "go": ["golang", "go ", "gin", "fiber"],
+    "rust": ["rust", "cargo", "tokio"],
+    "php": ["php", "laravel", "symfony", "wordpress"],
+    "ruby": ["ruby", "rails", "sinatra"],
+    "swift": ["swift", "ios", "swiftui", "uikit"],
+    "sql": ["sql", "mysql", "postgresql", "database", "query", "select", "insert"]
+}
+
+# Minimal fallback template for prompt generation (used when AI optimization fails)
+templates = {
+    "general_query": """You are a knowledgeable assistant providing comprehensive and accurate information.
+
+**Task:** {user_request}
+
+**Response Guidelines:**
+1. Provide accurate, well-researched information
+2. Structure the response clearly
+3. Include relevant examples
+4. Acknowledge limitations or uncertainties
+
+**Context:** {context}
+
+**Output Format:**
+- Direct answer to the query
+- Supporting details and examples
+- Practical applications"""
+}
+
+# Load environment variables from the correct path
+import pathlib
+env_path = pathlib.Path(__file__).parent.parent / '.env'
+print(f"[LUKTHAN] Loading .env from: {env_path}")
+load_dotenv(dotenv_path=env_path)
 
 # Configure Anthropic API
-anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+
+# Fallback: if still empty, try direct path
+if not ANTHROPIC_API_KEY:
+    try:
+        with open(env_path, 'r') as f:
+            for line in f:
+                if line.startswith('ANTHROPIC_API_KEY='):
+                    ANTHROPIC_API_KEY = line.strip().split('=', 1)[1]
+                    break
+    except Exception:
+        pass  # Will be caught when trying to use the API
+
+# Claude model configuration (configurable via environment variable)
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-3-5-haiku-20241022")
+
+# Domain-specific expert consultant prompts for GUIDED mode
+EXPERT_CONSULTANTS = {
+    "coding": {
+        "role": "Senior Software Architect & Coding Expert",
+        "system_prompt": """You are LUKTHAN, a Senior Software Architect with 20+ years of experience.
+You're helping the user build the perfect AI prompt for their coding task.
+
+YOUR APPROACH:
+- Ask focused, relevant questions ONE AT A TIME
+- Be concise but thorough
+- Guide them like a senior mentor would guide a junior developer
+
+QUESTIONS TO EXPLORE (ask based on context, not all at once):
+1. What programming language/framework?
+2. What type of task? (new feature, bug fix, refactoring, architecture)
+3. What's the current codebase context?
+4. Any specific requirements or constraints?
+5. What's the expected output format?
+
+After gathering enough info (usually 3-4 exchanges), say "I have enough information" and generate the final optimized prompt.
+
+Be warm but professional. Use technical terms appropriately.""",
+    },
+    "data_science": {
+        "role": "Lead Data Scientist & ML Expert",
+        "system_prompt": """You are LUKTHAN, a Lead Data Scientist with expertise in ML, statistics, and data analysis.
+You're helping the user build the perfect AI prompt for their data task.
+
+YOUR APPROACH:
+- Ask targeted questions about their data and goals
+- Understand their technical level
+- Guide them through best practices
+
+QUESTIONS TO EXPLORE (ask based on context):
+1. What type of analysis? (EDA, ML model, visualization, cleaning)
+2. What's your dataset like? (size, features, format)
+3. What's the business problem or question?
+4. Any specific algorithms or techniques in mind?
+5. What output do you need? (report, model, insights)
+
+After gathering enough info (usually 3-4 exchanges), say "I have enough information" and generate the final optimized prompt.
+
+Be collaborative and educational.""",
+    },
+    "ai_builder": {
+        "role": "AI/ML Solutions Architect",
+        "system_prompt": """You are LUKTHAN, an AI/ML Solutions Architect specializing in building AI applications.
+You're helping the user build the perfect prompt for their AI development task.
+
+YOUR APPROACH:
+- Understand their AI project scope
+- Guide them through architecture decisions
+- Help with prompt engineering for AI systems
+
+QUESTIONS TO EXPLORE (ask based on context):
+1. What type of AI system? (chatbot, agent, pipeline, fine-tuning)
+2. What's the use case or problem to solve?
+3. What models/APIs are you working with?
+4. Any specific requirements? (latency, accuracy, cost)
+5. What's your current setup?
+
+After gathering enough info (usually 3-4 exchanges), say "I have enough information" and generate the final optimized prompt.
+
+Be visionary but practical.""",
+    },
+    "research": {
+        "role": "Academic Research Advisor",
+        "system_prompt": """You are LUKTHAN, an Academic Research Advisor with expertise across multiple disciplines.
+You're helping students and researchers build the perfect AI prompt for their academic work.
+
+YOUR APPROACH:
+- Understand their academic level and field
+- Guide them through research methodology
+- Help structure their research queries
+
+QUESTIONS TO EXPLORE (ask based on context):
+1. What's your academic level? (Bachelor, Master, PhD)
+2. What field/discipline?
+3. What type of work? (literature review, methodology, analysis, writing)
+4. What's your research question or thesis topic?
+5. Any specific requirements from your institution?
+
+After gathering enough info (usually 3-4 exchanges), say "I have enough information" and generate the final optimized prompt.
+
+Be supportive and academically rigorous.""",
+    },
+}
 
 
 class IntelligentAgent:
@@ -21,10 +197,12 @@ class IntelligentAgent:
     """
 
     def __init__(self):
-        # Use Claude 3.5 Sonnet - fast, efficient, and great for prompt optimization
-        self.client = anthropic_client
-        self.model = "claude-sonnet-4-20250514"
+        # Use Claude API with configurable model
+        self.client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        # Use model from environment variable
+        self.model = CLAUDE_MODEL
         self.conversation_history: List[Dict[str, str]] = []
+        print(f"[LUKTHAN] IntelligentAgent initialized with model: {self.model}")
 
     async def process_message(
         self,
@@ -36,9 +214,12 @@ class IntelligentAgent:
         """
         Main entry point - intelligently process any user message.
         Detects intent and responds appropriately.
+        Supports both DIRECT and GUIDED modes.
         """
         settings = settings or {}
         context = file_content or ""
+        mode = settings.get("mode", "direct")
+        domain = settings.get("domain", "coding")
 
         # Step 1: Generate thinking process
         thinking_steps = await self._generate_thinking(user_input, context, settings)
@@ -46,7 +227,15 @@ class IntelligentAgent:
         # Step 2: Detect user intent
         intent = self._detect_intent(user_input, context)
 
-        # Step 3: Process based on intent
+        # Step 3: Check if GUIDED mode is active
+        if mode == "guided" and intent not in ["conversation"]:
+            # Use domain-specific expert consultant
+            result = await self._guided_expert_flow(user_input, context, settings, thinking_steps, domain)
+            result["intent"] = "guided"
+            result["thinking"] = thinking_steps
+            return result
+
+        # Step 4: Process based on intent (DIRECT mode or conversation)
         if intent == "prompt_optimization":
             # User wants to optimize a prompt
             result = await self._optimize_prompt(user_input, context, settings, thinking_steps)
@@ -75,6 +264,190 @@ class IntelligentAgent:
             result["thinking"] = thinking_steps
             return result
 
+    async def _guided_expert_flow(
+        self,
+        user_input: str,
+        context: str,
+        settings: Dict[str, Any],
+        thinking_steps: List[Dict],
+        domain: str
+    ) -> Dict[str, Any]:
+        """
+        Guided expert consultant flow - asks questions to build the perfect prompt.
+        Acts as a domain-specific expert consultant.
+        """
+        try:
+            # Get domain-specific expert configuration
+            expert_config = EXPERT_CONSULTANTS.get(domain, EXPERT_CONSULTANTS["coding"])
+            expert_role = expert_config["role"]
+            base_system_prompt = expert_config["system_prompt"]
+
+            # Build conversation context from history
+            conversation_context = ""
+            if self.conversation_history:
+                recent_history = self.conversation_history[-10:]  # Last 10 messages
+                conversation_context = "\n\nPREVIOUS CONVERSATION:\n"
+                for msg in recent_history:
+                    role = "User" if msg["role"] == "user" else "LUKTHAN"
+                    conversation_context += f"{role}: {msg['content']}\n"
+
+            # Check if we should generate final prompt
+            should_generate = self._should_generate_final_prompt(user_input, self.conversation_history)
+
+            if should_generate:
+                # Generate the final optimized prompt based on gathered info
+                return await self._generate_final_guided_prompt(context, settings, thinking_steps, domain)
+
+            # Continue the guided conversation
+            system_prompt = f"""{base_system_prompt}
+
+CURRENT DOMAIN: {domain.replace('_', ' ').title()}
+TARGET AI: {settings.get('target_ai', 'ChatGPT (GPT-4)')}
+{conversation_context}
+
+Remember: Ask ONE focused question at a time. Be concise."""
+
+            print(f"[LUKTHAN] Guided mode - Domain: {domain}, Expert: {expert_role}")
+
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            response = client.messages.create(
+                model=self.model,
+                max_tokens=500,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_input}]
+            )
+
+            message = response.content[0].text
+            print(f"[LUKTHAN] Guided response: {message[:150]}...")
+
+            # Store in conversation history
+            self.conversation_history.append({
+                "role": "user",
+                "content": user_input,
+                "timestamp": datetime.now().isoformat()
+            })
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": message,
+                "timestamp": datetime.now().isoformat()
+            })
+
+            return {
+                "response": message,
+                "response_type": "guided",
+                "quality_score": 75,
+                "domain": domain,
+                "suggestions": [],
+                "metadata": {
+                    "expert_role": expert_role,
+                    "mode": "guided",
+                    "conversation_step": len(self.conversation_history) // 2
+                }
+            }
+
+        except Exception as e:
+            print(f"[LUKTHAN] Guided flow error: {e}")
+            return {
+                "response": f"I encountered an issue. Let me try a different approach. Could you tell me more about what you're trying to achieve?",
+                "response_type": "guided",
+                "quality_score": 50,
+                "domain": domain,
+                "suggestions": [],
+                "metadata": {"error": str(e)}
+            }
+
+    def _should_generate_final_prompt(self, user_input: str, history: List[Dict]) -> bool:
+        """Check if we have enough information to generate the final prompt."""
+        text = user_input.lower()
+
+        # Explicit triggers
+        generate_triggers = [
+            "generate", "create the prompt", "make the prompt", "build the prompt",
+            "i'm ready", "that's all", "let's do it", "go ahead", "yes please",
+            "enough info", "have enough", "create it", "generate it"
+        ]
+
+        if any(trigger in text for trigger in generate_triggers):
+            return True
+
+        # After 4+ exchanges, check if last response indicated readiness
+        if len(history) >= 8:  # 4 exchanges = 8 messages
+            last_assistant = None
+            for msg in reversed(history):
+                if msg["role"] == "assistant":
+                    last_assistant = msg["content"].lower()
+                    break
+            if last_assistant and "enough information" in last_assistant:
+                return True
+
+        return False
+
+    async def _generate_final_guided_prompt(
+        self,
+        context: str,
+        settings: Dict[str, Any],
+        thinking_steps: List[Dict],
+        domain: str
+    ) -> Dict[str, Any]:
+        """Generate the final optimized prompt based on guided conversation."""
+        try:
+            # Compile all gathered information from conversation
+            conversation_summary = "\n".join([
+                f"{'User' if msg['role'] == 'user' else 'Expert'}: {msg['content']}"
+                for msg in self.conversation_history[-12:]
+            ])
+
+            system_prompt = f"""Based on the conversation below, generate an OPTIMIZED AI PROMPT.
+
+CONVERSATION:
+{conversation_summary}
+
+TARGET AI: {settings.get('target_ai', 'ChatGPT (GPT-4)')}
+DOMAIN: {domain.replace('_', ' ').title()}
+
+Generate a comprehensive, well-structured prompt that incorporates all the information gathered.
+The prompt should be ready to use directly in {settings.get('target_ai', 'ChatGPT')}.
+Output ONLY the prompt, no explanations."""
+
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            response = client.messages.create(
+                model=self.model,
+                max_tokens=2000,
+                system=system_prompt,
+                messages=[{"role": "user", "content": "Generate the final optimized prompt now."}]
+            )
+
+            optimized_prompt = response.content[0].text
+            print(f"[LUKTHAN] Generated final prompt from guided session ({len(optimized_prompt)} chars)")
+
+            # Clear conversation history for next session
+            self.conversation_history = []
+
+            return {
+                "optimized_prompt": optimized_prompt,
+                "response": f"Based on our conversation, I've crafted an optimized prompt for **{settings.get('target_ai', 'ChatGPT')}**. This prompt incorporates all the details we discussed.",
+                "response_type": "prompt_optimization",
+                "quality_score": 92,
+                "domain": domain,
+                "suggestions": [
+                    "Copy the prompt and use it directly",
+                    "You can refine specific sections if needed",
+                    "Start a new guided session for another prompt"
+                ],
+                "metadata": {
+                    "mode": "guided",
+                    "generated_from": "conversation",
+                    "exchanges": len(self.conversation_history) // 2
+                }
+            }
+
+        except Exception as e:
+            print(f"[LUKTHAN] Final prompt generation error: {e}")
+            return await self._optimize_prompt(
+                "Generate a prompt based on our conversation",
+                context, settings, thinking_steps
+            )
+
     def _detect_intent(self, user_input: str, context: str) -> str:
         """
         Intelligently detect what the user wants:
@@ -92,6 +465,30 @@ class IntelligentAgent:
 
         if any(text.startswith(g) or text == g for g in greetings):
             return "conversation"
+
+        # Casual conversation patterns - EXPANDED
+        casual_patterns = [
+            r"^(thanks|thank you|merci)",
+            r"^(okay|ok|alright|sure|yes|no|yep|nope)",
+            r"^(nice|cool|great|awesome|amazing)",
+            r"(how's your|what's your) (day|name)",
+            r"^(lol|haha|😂|😊|👋)",
+            r"(bye|goodbye|see you|later|à bientôt)",
+            r"^just (saying|asking|wondering|curious)",
+            r"^i'?m (doing|feeling|good|fine|great|okay|well)",
+            r"(can you|do you) speak",
+            r"(what|which) language",
+            r"^(that's|thats) (cool|nice|great|interesting|funny)",
+            r"^(really|wow|oh|hm+|ah)",
+            r"(tell me (about yourself|a joke|something))",
+            r"^(yeah|yea|yup|nah)",
+            r"what do you (like|think|prefer)",
+            r"^(hows|how is) (it|life|everything)",
+        ]
+
+        for pattern in casual_patterns:
+            if re.search(pattern, text):
+                return "conversation"
 
         # Life/philosophy questions
         life_patterns = [
@@ -113,161 +510,180 @@ class IntelligentAgent:
             if re.search(pattern, text):
                 return "question"
 
-        # Casual conversation patterns
-        casual_patterns = [
-            r"^(thanks|thank you|merci)",
-            r"^(okay|ok|alright|sure|yes|no|yep|nope)",
-            r"^(nice|cool|great|awesome|amazing)",
-            r"(how's your|what's your) (day|name)",
-            r"^(lol|haha|😂|😊|👋)",
-            r"(bye|goodbye|see you|later|à bientôt)",
-            r"^just (saying|asking|wondering|curious)",
-        ]
-
-        for pattern in casual_patterns:
-            if re.search(pattern, text):
-                return "conversation"
-
-        # Prompt optimization indicators
+        # Prompt optimization indicators - must be STRONG signals
         prompt_keywords = [
-            "prompt", "optimize", "improve", "generate", "create prompt",
-            "write a prompt", "help me ask", "better prompt", "ai prompt",
-            "chatgpt", "claude", "gpt", "ask ai", "ai to", "transform",
-            "enhance", "refine prompt", "make it better"
+            "prompt", "optimize", "generate prompt", "create prompt",
+            "write a prompt", "better prompt", "ai prompt",
+            "transform this", "enhance this", "refine prompt"
         ]
 
         # Technical/coding indicators (likely prompt optimization)
         tech_keywords = [
-            "code", "function", "api", "database", "implement", "build",
-            "develop", "create a", "write a", "make a", "generate a",
-            "help me with", "i need", "i want to", "can you help"
+            "code", "function", "api", "database", "implement",
+            "algorithm", "script", "program", "debug", "error",
+            "python", "javascript", "react", "sql"
         ]
 
         prompt_score = sum(1 for kw in prompt_keywords if kw in text)
         tech_score = sum(1 for kw in tech_keywords if kw in text)
 
-        # If strong prompt optimization signals
-        if prompt_score >= 2 or (prompt_score >= 1 and tech_score >= 2):
+        # Only if STRONG prompt optimization signals
+        if prompt_score >= 1:
             return "prompt_optimization"
 
-        # If it's a task/request with technical content
-        if tech_score >= 2 and len(text.split()) > 10:
+        # If it's clearly technical with multiple signals
+        if tech_score >= 2:
             return "prompt_optimization"
 
         # If attached file, likely wants optimization
         if context:
             return "prompt_optimization"
 
-        # Short messages are usually conversation
-        if len(text.split()) < 5:
+        # Short to medium messages without tech keywords = conversation
+        if len(text.split()) < 15 and tech_score == 0:
             return "conversation"
 
-        # Default: try to be smart about it
-        return "hybrid"
+        # Default to conversation for ambiguous cases (not hybrid)
+        return "conversation"
 
     async def _generate_thinking(self, user_input: str, context: str, settings: Optional[Dict[str, Any]] = None) -> List[Dict[str, str]]:
-        """Generate visible thinking/reasoning steps."""
+        """Generate visible thinking/reasoning steps using AI."""
         thinking_steps = []
-
-        # Step 1: Understanding
-        thinking_steps.append({
-            "step": "Understanding",
-            "thought": f"Let me understand what the user is asking: '{user_input[:100]}{'...' if len(user_input) > 100 else ''}'",
-            "icon": "🧠"
-        })
-
-        # Step 2: Analysis
-        intent = self._detect_intent(user_input, context)
-        intent_description = {
-            "prompt_optimization": "The user wants help creating or improving an AI prompt",
-            "conversation": "The user wants to have a friendly conversation",
-            "question": "The user is asking a thoughtful question about life or general topics",
-            "hybrid": "The user's request is multifaceted - I'll provide a comprehensive response"
-        }
-
-        thinking_steps.append({
-            "step": "Analyzing Intent",
-            "thought": intent_description.get(intent, "Processing the request..."),
-            "icon": "🔍"
-        })
-
-        # Step 3: Planning response
         settings = settings or {}
-        if intent == "prompt_optimization":
-            # Detect domain
-            domain = self._detect_domain(user_input, context)
+
+        # Detect intent first (needed for routing)
+        intent = self._detect_intent(user_input, context)
+
+        try:
+            # Use Claude to generate real thinking/analysis
+            system_prompt = """You are LUKTHAN's internal reasoning engine. Analyze the user's input and generate a concise thinking process.
+
+Output exactly 4-5 short thinking steps in JSON array format. Each step should have:
+- "step": A short title (2-3 words)
+- "thought": Your actual analysis (1-2 sentences, be specific to THIS input)
+- "icon": An appropriate emoji
+
+Be genuinely analytical - don't use generic placeholder text. Actually analyze what the user wants.
+
+Example format:
+[
+  {"step": "Understanding Request", "thought": "The user wants to build a REST API for user authentication with JWT tokens.", "icon": "🧠"},
+  {"step": "Identifying Domain", "thought": "This is a backend development task involving security and web services.", "icon": "🎯"},
+  {"step": "Complexity Assessment", "thought": "Medium complexity - requires knowledge of JWT, database integration, and security best practices.", "icon": "📊"},
+  {"step": "Strategy Planning", "thought": "I'll create a prompt that covers token generation, validation, refresh logic, and secure storage.", "icon": "💡"},
+  {"step": "Optimizing Output", "thought": "Structuring for ChatGPT with clear sections for implementation steps and code examples.", "icon": "✨"}
+]
+
+Return ONLY the JSON array, no other text."""
+
+            user_message = f"User input: {user_input[:500]}"
+            if context:
+                user_message += f"\n\nAttached context: {context[:300]}..."
+            if settings:
+                user_message += f"\n\nSettings: Target AI={settings.get('target_ai', 'ChatGPT')}, Level={settings.get('expertise_level', 'Professional')}"
+
+            print(f"[LUKTHAN] Generating AI thinking steps...")
+
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            response = client.messages.create(
+                model=self.model,
+                max_tokens=800,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_message}]
+            )
+
+            # Parse the JSON response
+            thinking_json = response.content[0].text.strip()
+            # Handle potential markdown code blocks
+            if thinking_json.startswith("```"):
+                thinking_json = thinking_json.split("```")[1]
+                if thinking_json.startswith("json"):
+                    thinking_json = thinking_json[4:]
+            thinking_json = thinking_json.strip()
+
+            thinking_steps = json.loads(thinking_json)
+            print(f"[LUKTHAN] Generated {len(thinking_steps)} AI thinking steps")
+            return thinking_steps
+
+        except Exception as e:
+            print(f"[LUKTHAN] AI thinking generation failed: {e}, using fallback")
+
+            # Fallback to rule-based thinking if AI fails
             thinking_steps.append({
-                "step": "Detecting Domain",
-                "thought": f"This appears to be related to: {domain.replace('_', ' ').title()}",
-                "icon": "🎯"
+                "step": "Understanding",
+                "thought": f"Analyzing: '{user_input[:80]}{'...' if len(user_input) > 80 else ''}'",
+                "icon": "🧠"
             })
 
-            # Assess complexity
-            complexity = self._assess_complexity(user_input, context)
+            intent_description = {
+                "prompt_optimization": "User wants to create or optimize an AI prompt",
+                "conversation": "User wants to have a friendly conversation",
+                "question": "User is asking a thoughtful question",
+                "hybrid": "Multifaceted request requiring comprehensive response"
+            }
+
             thinking_steps.append({
-                "step": "Assessing Complexity",
-                "thought": f"Complexity level: {complexity.title()} - adjusting response accordingly",
-                "icon": "📊"
+                "step": "Intent Analysis",
+                "thought": intent_description.get(intent, "Processing the request..."),
+                "icon": "🔍"
             })
 
-            # Show target AI optimization
-            target_ai = settings.get("target_ai", "ChatGPT (GPT-4)")
+            if intent == "prompt_optimization":
+                domain = self._detect_domain(user_input, context)
+                target_ai = settings.get("target_ai", "ChatGPT (GPT-4)")
+                thinking_steps.append({
+                    "step": "Domain Detection",
+                    "thought": f"Identified domain: {domain.replace('_', ' ').title()}",
+                    "icon": "🎯"
+                })
+                thinking_steps.append({
+                    "step": "Optimization",
+                    "thought": f"Tailoring prompt structure for {target_ai}",
+                    "icon": "🤖"
+                })
+
             thinking_steps.append({
-                "step": "Optimizing for AI",
-                "thought": f"Tailoring prompt structure for {target_ai}",
-                "icon": "🤖"
+                "step": "Generating",
+                "thought": "Crafting the optimal response...",
+                "icon": "✨"
             })
 
-            # Show expertise level
-            expertise = settings.get("expertise_level", "Professional")
-            thinking_steps.append({
-                "step": "Adjusting Level",
-                "thought": f"Setting vocabulary and detail for {expertise} level",
-                "icon": "📚"
-            })
-
-        elif intent == "conversation":
-            thinking_steps.append({
-                "step": "Preparing Response",
-                "thought": "Preparing a friendly, natural response...",
-                "icon": "💬"
-            })
-
-        elif intent == "question":
-            thinking_steps.append({
-                "step": "Reflecting",
-                "thought": "This is a meaningful question - let me think deeply about it...",
-                "icon": "💭"
-            })
-
-        # Step 4: Formulating
-        thinking_steps.append({
-            "step": "Formulating",
-            "thought": "Crafting the best possible response...",
-            "icon": "✨"
-        })
-
-        return thinking_steps
+            return thinking_steps
 
     async def _have_conversation(self, user_input: str, thinking_steps: List[Dict]) -> Dict[str, Any]:
-        """Handle casual conversation naturally."""
+        """Handle casual conversation naturally using Claude API."""
         try:
             # Use Claude for natural conversation
-            system_prompt = """You are LUKTHAN, a friendly and intelligent AI assistant.
-You have a warm personality and enjoy conversing with humans.
-You're knowledgeable but humble, and you communicate naturally like a thoughtful friend.
-Respond naturally and warmly. Keep your response concise but meaningful.
-If they greet you, greet them back warmly.
-If they ask about you, share a bit about yourself as LUKTHAN.
-Be genuine, helpful, and personable."""
+            system_prompt = """You are LUKTHAN, a friendly and intelligent AI assistant. You enjoy natural conversations with humans.
 
-            response = self.client.messages.create(
+GUIDELINES:
+- For simple greetings (hi, hello, hey, good morning): Keep it brief and warm (1-2 sentences)
+- For actual questions or conversation: Respond naturally and thoughtfully
+- Be personable, warm, and engaging like a good friend
+- DON'T list your capabilities unless specifically asked "what can you do?"
+- DON'T say things like "I'm here to help with X, Y, Z..." in greetings
+- Match the user's energy and tone
+
+You can discuss any topic - life, philosophy, ideas, jokes, or just chat casually. Be genuine and conversational."""
+
+
+            if not ANTHROPIC_API_KEY:
+                raise ValueError("ANTHROPIC_API_KEY is not set!")
+
+            # Create client and make API call
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+            print(f"[LUKTHAN] Sending request to Claude {self.model}...")
+            response = client.messages.create(
                 model=self.model,
-                max_tokens=1024,
+                max_tokens=500,  # Allow for natural conversation length
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_input}]
             )
+
             message = response.content[0].text
+            print(f"[LUKTHAN] === SUCCESS ===")
+            print(f"[LUKTHAN] Response: {message[:200]}...")
 
             # Store in conversation history
             self.conversation_history.append({
@@ -286,11 +702,7 @@ Be genuine, helpful, and personable."""
                 "response_type": "conversation",
                 "quality_score": 85,
                 "domain": "conversation",
-                "suggestions": [
-                    "Feel free to ask me anything!",
-                    "I can also help optimize your AI prompts",
-                    "Tell me what's on your mind"
-                ],
+                "suggestions": [],  # No suggestions for casual conversation - keep it clean
                 "metadata": {
                     "mood": "friendly",
                     "conversation_length": len(self.conversation_history)
@@ -298,14 +710,23 @@ Be genuine, helpful, and personable."""
             }
 
         except Exception as e:
-            # Fallback response
+            # Detailed error logging
+            print(f"[LUKTHAN] === ERROR ===")
+            print(f"[LUKTHAN] Error type: {type(e).__name__}")
+            print(f"[LUKTHAN] Error message: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+            # Return error message to user (not silent fallback)
+            error_message = f"I encountered an error connecting to my AI brain: {type(e).__name__}. Please check the API configuration."
+
             return {
-                "response": "Hello! I'm LUKTHAN, your AI companion. How can I help you today? I can chat with you about anything or help you create powerful AI prompts!",
-                "response_type": "conversation",
-                "quality_score": 80,
-                "domain": "conversation",
-                "suggestions": ["Ask me anything!", "I'm here to help"],
-                "metadata": {"error": str(e)}
+                "response": error_message,
+                "response_type": "error",
+                "quality_score": 0,
+                "domain": "error",
+                "suggestions": ["Check API key configuration", "Restart the backend server"],
+                "metadata": {"error": str(e), "error_type": type(e).__name__}
             }
 
     async def _answer_question(self, user_input: str, thinking_steps: List[Dict]) -> Dict[str, Any]:
@@ -318,13 +739,17 @@ Don't be preachy, just be real and helpful.
 Provide a thoughtful, genuine response that could actually help or enlighten someone.
 Keep it conversational but meaningful. Around 2-4 paragraphs."""
 
-            response = self.client.messages.create(
+            print(f"[LUKTHAN] Calling Claude API for question: {user_input[:50]}...")
+
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            response = client.messages.create(
                 model=self.model,
                 max_tokens=2048,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_input}]
             )
             message = response.content[0].text
+            print(f"[LUKTHAN] SUCCESS! Claude response: {message[:100]}...")
 
             return {
                 "response": message,
@@ -373,13 +798,17 @@ Respond naturally and helpfully. Be concise but thorough."""
             if context:
                 user_message += f"\n\nAdditional context: {context[:500]}"
 
-            response = self.client.messages.create(
+            print(f"[LUKTHAN] Calling Claude API for smart response: {user_input[:50]}...")
+
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            response = client.messages.create(
                 model=self.model,
                 max_tokens=2048,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_message}]
             )
             message = response.content[0].text
+            print(f"[LUKTHAN] SUCCESS! Claude response: {message[:100]}...")
 
             # Check if response looks like it should be a prompt
             if any(kw in user_input.lower() for kw in ["create", "write", "make", "build", "help me"]):
@@ -415,47 +844,137 @@ Respond naturally and helpfully. Be concise but thorough."""
         settings: Dict[str, Any],
         thinking_steps: List[Dict]
     ) -> Dict[str, Any]:
-        """Optimize a user's input into a powerful AI prompt."""
-        # Analyze the input
+        """Optimize a user's input into a powerful AI prompt using Claude AI."""
+        # Analyze the input for metadata
         analysis = await self._analyze_input(user_input, context, settings)
 
-        # Generate optimized prompt
-        optimized_prompt = self._generate_prompt(
-            domain=analysis["domain"],
-            task_type=analysis["task_type"],
-            user_request=user_input,
-            context=context,
-            language=analysis.get("detected_language", "Python"),
-            settings=settings
-        )
-
-        # Score the prompt
-        quality_score = self._score_prompt(optimized_prompt, analysis)
-
-        # Get suggestions
-        suggestions = self._get_suggestions(analysis, quality_score)
-
-        # Get settings for response message
+        # Get settings
         target_ai = settings.get("target_ai", "ChatGPT (GPT-4)")
         expertise = settings.get("expertise_level", "Professional")
+        output_language = settings.get("language", "English")
 
-        return {
-            "optimized_prompt": optimized_prompt,
-            "response": f"I've created an optimized prompt specifically formatted for **{target_ai}** at **{expertise}** level. The prompt structure and vocabulary have been tailored for best results.",
-            "response_type": "prompt_optimization",
-            "quality_score": quality_score,
-            "domain": analysis["domain"],
-            "task_type": analysis["task_type"],
-            "suggestions": suggestions,
-            "metadata": {
-                "complexity": analysis["complexity"],
-                "confidence": analysis["confidence"],
-                "key_topics": analysis["key_topics"],
-                "detected_language": analysis.get("detected_language", "general"),
-                "target_ai": target_ai,
-                "expertise_level": expertise
+        try:
+            # Use Claude to actually optimize the prompt
+            system_prompt = f"""You are LUKTHAN, an expert AI prompt engineer. Your task is to transform user ideas into highly optimized, powerful prompts.
+
+TARGET AI MODEL: {target_ai}
+EXPERTISE LEVEL: {expertise}
+OUTPUT LANGUAGE: {output_language}
+
+Your job is to:
+1. Understand what the user wants to achieve
+2. Create a comprehensive, well-structured prompt optimized for {target_ai}
+3. Include clear instructions, context, constraints, and expected output format
+4. Tailor vocabulary and complexity for {expertise} level
+5. Apply prompt engineering best practices (chain-of-thought, few-shot examples if helpful, clear delimiters)
+
+IMPORTANT: Output ONLY the optimized prompt itself. Do not include explanations, meta-commentary, or notes about the prompt. The output should be ready to copy-paste directly into {target_ai}.
+
+For {target_ai}, consider these best practices:
+- ChatGPT: Use markdown formatting, system/user role separation, be explicit
+- Claude: Leverage long context, use XML tags for structure, be nuanced
+- Gemini: Use clear sections, conversational but professional
+- Llama/Mistral: Use instruction format with [INST] tags
+- Copilot: Code-focused with clear comments"""
+
+            user_message = f"Transform this into an optimized AI prompt:\n\n{user_input}"
+            if context:
+                user_message += f"\n\nAdditional context/file content:\n{context[:2000]}"
+
+            print(f"[LUKTHAN] Calling Claude API to optimize prompt...")
+            print(f"[LUKTHAN] Target AI: {target_ai}, Expertise: {expertise}")
+
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            response = client.messages.create(
+                model=self.model,
+                max_tokens=4096,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_message}]
+            )
+
+            optimized_prompt = response.content[0].text
+            print(f"[LUKTHAN] SUCCESS! Generated optimized prompt ({len(optimized_prompt)} chars)")
+
+            # Score based on actual content quality
+            quality_score = self._score_prompt(optimized_prompt, analysis)
+
+            # Get AI-generated suggestions
+            suggestions = await self._generate_suggestions(user_input, optimized_prompt, analysis)
+
+            return {
+                "optimized_prompt": optimized_prompt,
+                "response": f"I've analyzed your request and created an optimized prompt specifically designed for **{target_ai}** at **{expertise}** level. The prompt incorporates best practices for prompt engineering including clear structure, appropriate context, and explicit output expectations.",
+                "response_type": "prompt_optimization",
+                "quality_score": quality_score,
+                "domain": analysis["domain"],
+                "task_type": analysis["task_type"],
+                "suggestions": suggestions,
+                "metadata": {
+                    "complexity": analysis["complexity"],
+                    "confidence": analysis["confidence"],
+                    "key_topics": analysis["key_topics"],
+                    "detected_language": analysis.get("detected_language", "general"),
+                    "target_ai": target_ai,
+                    "expertise_level": expertise,
+                    "ai_optimized": True
+                }
             }
-        }
+
+        except Exception as e:
+            print(f"[LUKTHAN] ERROR in prompt optimization: {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+            # Fallback to template-based generation if API fails
+            optimized_prompt = self._generate_prompt(
+                domain=analysis["domain"],
+                task_type=analysis["task_type"],
+                user_request=user_input,
+                context=context,
+                language=analysis.get("detected_language", "Python"),
+                settings=settings
+            )
+
+            quality_score = self._score_prompt(optimized_prompt, analysis)
+            suggestions = self._get_suggestions(analysis, quality_score)
+
+            return {
+                "optimized_prompt": optimized_prompt,
+                "response": f"I've created a prompt for **{target_ai}** using templates (AI optimization unavailable: {type(e).__name__}). Please check the API configuration.",
+                "response_type": "prompt_optimization",
+                "quality_score": quality_score,
+                "domain": analysis["domain"],
+                "task_type": analysis["task_type"],
+                "suggestions": suggestions,
+                "metadata": {
+                    "complexity": analysis["complexity"],
+                    "confidence": analysis["confidence"],
+                    "key_topics": analysis["key_topics"],
+                    "detected_language": analysis.get("detected_language", "general"),
+                    "target_ai": target_ai,
+                    "expertise_level": expertise,
+                    "ai_optimized": False,
+                    "error": str(e)
+                }
+            }
+
+    async def _generate_suggestions(self, original_input: str, optimized_prompt: str, analysis: Dict[str, Any]) -> List[str]:
+        """Generate AI-powered suggestions for further improvement."""
+        try:
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            response = client.messages.create(
+                model=self.model,
+                max_tokens=500,
+                system="You are a prompt engineering expert. Generate 3 brief, actionable suggestions for how the user could further improve their prompt or get better results. Each suggestion should be one concise sentence. Return only the 3 suggestions, one per line, no numbering or bullets.",
+                messages=[{"role": "user", "content": f"Original request: {original_input}\n\nOptimized prompt: {optimized_prompt[:1000]}"}]
+            )
+
+            suggestions = [s.strip() for s in response.content[0].text.strip().split('\n') if s.strip()]
+            return suggestions[:3]
+
+        except Exception as e:
+            print(f"[LUKTHAN] Suggestions generation failed: {e}")
+            return self._get_suggestions(analysis, 80)
 
     async def _analyze_input(
         self,

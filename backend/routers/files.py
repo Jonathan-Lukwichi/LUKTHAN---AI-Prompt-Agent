@@ -14,3 +14,4 @@ async def upload_file(file: UploadFile = File(...)):
         return {"content": content, "file_type": file_type}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+

@@ -1,167 +1,167 @@
 import { motion } from 'framer-motion';
-import { Brain, FlaskConical, Code, BarChart3, MessageCircle, Sparkles, Heart, Lightbulb } from 'lucide-react';
+import {
+  Sparkles,
+  Code,
+  Database,
+  FileText,
+  FlaskConical,
+  Wand2,
+  ArrowRight,
+  Zap,
+  MessageSquare,
+  Image,
+  Bot
+} from 'lucide-react';
 import InputBar from '../Chat/InputBar';
 
-const domainChips = [
-  { icon: MessageCircle, label: 'Chat', color: 'from-neon-cyan to-blue-500', hoverBg: 'hover:bg-neon-cyan/20' },
-  { icon: Code, label: 'Coding', color: 'from-neon-purple to-neon-pink', hoverBg: 'hover:bg-neon-purple/20' },
-  { icon: FlaskConical, label: 'Research', color: 'from-neon-pink to-orange-500', hoverBg: 'hover:bg-neon-pink/20' },
-  { icon: Heart, label: 'Life Advice', color: 'from-success to-emerald-500', hoverBg: 'hover:bg-success/20' },
+const quickStartCategories = [
+  {
+    icon: Code,
+    label: 'Code',
+    gradient: 'from-cyan-400 to-blue-500',
+  },
+  {
+    icon: Database,
+    label: 'Data',
+    gradient: 'from-violet-500 to-purple-500',
+  },
+  {
+    icon: FileText,
+    label: 'Writing',
+    gradient: 'from-orange-500 to-pink-500',
+  },
+  {
+    icon: FlaskConical,
+    label: 'Research',
+    gradient: 'from-green-400 to-cyan-400',
+  },
+  {
+    icon: Image,
+    label: 'Creative',
+    gradient: 'from-pink-500 to-rose-500',
+  },
+  {
+    icon: Bot,
+    label: 'Assistant',
+    gradient: 'from-blue-500 to-violet-500',
+  },
+];
+
+const suggestions = [
+  'Write a Python function to sort data',
+  'Create a marketing email template',
+  'Explain machine learning simply',
+  'Generate SQL query for user analytics',
 ];
 
 const WelcomeHero = () => {
   return (
-    <div className="flex flex-col h-full">
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 relative overflow-hidden">
-        {/* Animated background orbs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <motion.div
-            className="absolute top-20 left-1/4 w-64 h-64 bg-neon-purple/20 rounded-full blur-3xl"
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.3, 0.5, 0.3],
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          />
-          <motion.div
-            className="absolute bottom-20 right-1/4 w-80 h-80 bg-neon-cyan/20 rounded-full blur-3xl"
-            animate={{
-              scale: [1.2, 1, 1.2],
-              opacity: [0.4, 0.6, 0.4],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          />
-          <motion.div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-neon-pink/10 rounded-full blur-3xl"
-            animate={{
-              scale: [1, 1.3, 1],
-              opacity: [0.2, 0.3, 0.2],
-            }}
-            transition={{
-              duration: 6,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          />
-        </div>
+    <div className="flex flex-col h-full relative overflow-hidden bg-[#030014]">
+      {/* Subtle background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <motion.div
+          className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full opacity-15"
+          style={{
+            background: 'radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, transparent 70%)',
+          }}
+          animate={{ scale: [1, 1.2, 1] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full opacity-15"
+          style={{
+            background: 'radial-gradient(circle, rgba(0, 255, 255, 0.4) 0%, transparent 70%)',
+          }}
+          animate={{ scale: [1.2, 1, 1.2] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(139,92,246,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.02)_1px,transparent_1px)] bg-[size:40px_40px]" />
+      </div>
 
-        {/* Content */}
-        <div className="relative z-10 text-center max-w-2xl">
-          {/* Logo */}
+      {/* Main content - Compact layout */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative z-10 max-h-[calc(100vh-180px)]">
+        <div className="text-center w-full max-w-3xl">
+          {/* Compact Logo + Title Row */}
           <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: 'spring', duration: 0.8 }}
-            className="mx-auto mb-6 w-20 h-20 rounded-2xl bg-gradient-to-br from-neon-cyan via-neon-purple to-neon-pink p-0.5 shadow-glow"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex items-center justify-center gap-3 mb-3"
           >
-            <div className="w-full h-full rounded-2xl bg-bg-deep flex items-center justify-center">
-              <Brain className="w-10 h-10 text-neon-cyan" />
+            <div className="relative">
+              <div className="absolute inset-0 w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500 blur-lg opacity-40" />
+              <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400 via-violet-500 to-pink-500 p-[2px]">
+                <div className="w-full h-full rounded-xl bg-[#030014] flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-cyan-400" />
+                </div>
+              </div>
             </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">
+              What would you like to <span className="text-gradient-animated">create?</span>
+            </h1>
           </motion.div>
 
-          {/* Title */}
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="font-heading text-4xl md:text-5xl font-bold mb-4"
-          >
-            <span className="bg-gradient-to-r from-neon-cyan via-neon-purple to-neon-pink bg-clip-text text-transparent">
-              Hey, I'm LUKTHAN
-            </span>
-          </motion.h1>
-
-          {/* Subtitle */}
+          {/* Subtitle - Very compact */}
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-text-secondary text-lg md:text-xl mb-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="text-gray-400 text-sm mb-4 max-w-md mx-auto"
           >
-            Your intelligent AI companion. I can{' '}
-            <span className="text-neon-cyan font-medium">chat with you</span>,{' '}
-            <span className="text-neon-purple font-medium">answer questions</span>, and{' '}
-            <span className="text-neon-pink font-medium">optimize your prompts</span>
+            Describe your idea and get the <span className="text-cyan-400">perfect AI prompt</span> instantly.
           </motion.p>
 
-          {/* Domain chips */}
+          {/* Quick Categories - Horizontal compact chips */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="flex flex-wrap justify-center gap-3 mb-8"
+            transition={{ delay: 0.2 }}
+            className="flex flex-wrap items-center justify-center gap-2 mb-5"
           >
-            {domainChips.map((chip, index) => (
+            {quickStartCategories.map((category, index) => (
               <motion.button
-                key={chip.label}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.5 + index * 0.1 }}
+                key={category.label}
                 whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full border border-text-muted/30 ${chip.hoverBg} transition-colors group`}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-cyan-500/30 hover:bg-cyan-500/10 transition-all group"
               >
-                <chip.icon className={`w-4 h-4 bg-gradient-to-r ${chip.color} bg-clip-text`} style={{ color: 'inherit' }} />
-                <span className="text-sm text-text-secondary group-hover:text-text-primary transition-colors">
-                  {chip.label}
-                </span>
+                <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${category.gradient} flex items-center justify-center`}>
+                  <category.icon className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-xs font-medium text-gray-300 group-hover:text-white">{category.label}</span>
               </motion.button>
             ))}
           </motion.div>
 
-          {/* Features */}
+          {/* Suggestions - Compact inline */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-text-muted"
+            transition={{ delay: 0.3 }}
+            className="flex flex-wrap items-center justify-center gap-2 mb-4"
           >
-            <div className="flex items-center gap-1.5">
-              <Lightbulb className="w-4 h-4 text-neon-cyan" />
-              <span>Thinks before responding</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-neon-purple" />
-              <span>Auto-detects intent</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Heart className="w-4 h-4 text-neon-pink" />
-              <span>Friendly conversations</span>
-            </div>
-          </motion.div>
-
-          {/* Example prompts */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
-            className="mt-8 flex flex-wrap justify-center gap-2"
-          >
-            <span className="text-xs text-text-muted">Try saying:</span>
-            <span className="text-xs px-2 py-1 bg-bg-card rounded-full text-neon-cyan border border-neon-cyan/20">
-              "Hello!"
-            </span>
-            <span className="text-xs px-2 py-1 bg-bg-card rounded-full text-neon-purple border border-neon-purple/20">
-              "Help me write a Python function"
-            </span>
-            <span className="text-xs px-2 py-1 bg-bg-card rounded-full text-neon-pink border border-neon-pink/20">
-              "What is the meaning of life?"
-            </span>
+            <span className="text-xs text-gray-600">Try:</span>
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                className="px-2.5 py-1 text-xs text-gray-500 bg-white/5 rounded-lg border border-white/5 hover:border-cyan-500/20 hover:text-cyan-400 transition-all truncate max-w-[180px]"
+              >
+                {suggestion}
+              </button>
+            ))}
           </motion.div>
         </div>
       </div>
 
-      {/* Input bar at bottom */}
-      <InputBar />
+      {/* Input bar - Positioned higher with less padding */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="relative z-10"
+      >
+        <InputBar />
+      </motion.div>
     </div>
   );
 };

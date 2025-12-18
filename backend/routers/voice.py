@@ -27,6 +27,9 @@ async def transcribe(file: UploadFile = File(...)):
             tmp_file.write(audio_data)
             tmp_path = tmp_file.name
 
+        # Track all temp files for cleanup
+        temp_files = [tmp_path]
+
         try:
             # Import here to avoid issues if dependencies aren't installed
             import speech_recognition as sr
@@ -39,6 +42,7 @@ async def transcribe(file: UploadFile = File(...)):
                 audio = AudioSegment.from_mp3(tmp_path)
                 wav_path = tmp_path.replace(".mp3", ".wav")
                 audio.export(wav_path, format="wav")
+                temp_files.append(wav_path)
                 tmp_path = wav_path
 
             # Transcribe
@@ -49,12 +53,13 @@ async def transcribe(file: UploadFile = File(...)):
             return {"transcription": transcription, "success": True}
 
         finally:
-            # Clean up temp files
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-            wav_path = tmp_path.replace(".mp3", ".wav")
-            if os.path.exists(wav_path):
-                os.remove(wav_path)
+            # Clean up all temp files
+            for file_path in temp_files:
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except Exception:
+                        pass  # Ignore cleanup errors
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

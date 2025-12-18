@@ -53,11 +53,12 @@ export const usePromptAgent = () => {
         updateAgentResponse(agentMessageId, response);
 
         // Show appropriate toast based on intent
-        const toastMessage = {
+        const toastMessage: Record<string, string> = {
           conversation: 'Message received!',
           question: 'Thoughtful response ready!',
           prompt_optimization: 'Prompt optimized successfully!',
           hybrid: 'Response generated!',
+          guided: 'Expert guidance ready!',
         };
         toast.success(toastMessage[response.intent] || 'Response ready!');
 

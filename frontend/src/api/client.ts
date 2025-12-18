@@ -71,4 +71,55 @@ export const transcribeVoice = async (audioBlob: Blob): Promise<VoiceTranscripti
   return response.data;
 };
 
+// History Types
+export interface HistoryItem {
+  id: number;
+  raw_prompt: string;
+  domain: string;
+  task_type: string;
+  quality_score: number;
+  created_at: string;
+}
+
+export interface HistoryResponse {
+  sessions: HistoryItem[];
+  total: number;
+}
+
+export interface SessionDetail {
+  id: number;
+  raw_prompt: string;
+  domain: string;
+  task_type: string;
+  quality_score: number;
+  created_at: string;
+  versions: {
+    id: number;
+    label: string;
+    optimized_prompt: string;
+    was_copied: boolean;
+    rating: number;
+    created_at: string;
+  }[];
+}
+
+// History API functions
+export const getHistory = async (limit: number = 20): Promise<HistoryResponse> => {
+  const response = await apiClient.get<HistoryResponse>(`/prompts/history?limit=${limit}`);
+  return response.data;
+};
+
+export const getSessionDetail = async (sessionId: number): Promise<SessionDetail> => {
+  const response = await apiClient.get<SessionDetail>(`/prompts/history/${sessionId}`);
+  return response.data;
+};
+
+export const deleteSession = async (sessionId: number): Promise<void> => {
+  await apiClient.delete(`/prompts/history/${sessionId}`);
+};
+
+export const clearHistory = async (): Promise<void> => {
+  await apiClient.delete('/prompts/history');
+};
+
 export default apiClient;
