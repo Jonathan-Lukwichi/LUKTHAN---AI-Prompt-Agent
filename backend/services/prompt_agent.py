@@ -297,8 +297,8 @@ class IntelligentAgent:
         domain: str
     ) -> Dict[str, Any]:
         """
-        Guided expert consultant flow - asks questions ONE AT A TIME progressively.
-        STRICTLY one question per response, no prompts until user says "generate".
+        Guided expert consultant flow - uses REAL AI to have natural conversations
+        while progressively gathering information ONE question at a time.
         """
         try:
             # Get domain-specific expert configuration
@@ -308,7 +308,7 @@ class IntelligentAgent:
             # Calculate conversation step (number of exchanges)
             conversation_step = len(self.conversation_history) // 2
 
-            print(f"[LUKTHAN] === GUIDED MODE ===")
+            print(f"[LUKTHAN] === GUIDED MODE (AI-Powered) ===")
             print(f"[LUKTHAN] Domain: {domain}, Step: {conversation_step}, History: {len(self.conversation_history)} messages")
             print(f"[LUKTHAN] User input: {user_input[:50]}...")
 
@@ -319,55 +319,93 @@ class IntelligentAgent:
                 print(f"[LUKTHAN] >>> GENERATING FINAL PROMPT <<<")
                 return await self._generate_final_guided_prompt(context, settings, thinking_steps, domain)
 
-            # Store user message in history FIRST
+            # Store user message in history
             self.conversation_history.append({
                 "role": "user",
                 "content": user_input,
                 "timestamp": datetime.now().isoformat()
             })
 
-            # Define the SINGLE question to ask based on step
-            questions_by_step = {
+            # Define the question to ask based on step (AI will phrase it naturally)
+            questions_by_domain = {
                 "coding": [
-                    "What programming language or framework are you working with?",
-                    "What specific task do you need help with? (e.g., building a feature, fixing a bug, refactoring)",
-                    "Are there any specific requirements or constraints I should know about?",
-                    "What format would you like the output in? (e.g., code with comments, step-by-step guide)",
+                    "what programming language or framework they're using",
+                    "what specific task they need help with (building a feature, fixing a bug, refactoring, etc.)",
+                    "any specific requirements, constraints, or preferences",
+                    "what format they want the output in (code with comments, step-by-step guide, etc.)",
                 ],
                 "data_science": [
-                    "What's the main goal of your analysis? (e.g., prediction, classification, clustering)",
-                    "Can you tell me about your dataset? (size, type of data, key features)",
-                    "Are there any specific algorithms or techniques you'd like to use?",
-                    "What output do you need? (e.g., Python code, insights report, visualization)",
+                    "the main goal of their analysis (prediction, classification, clustering, etc.)",
+                    "details about their dataset (size, type of data, key features)",
+                    "any specific algorithms or techniques they'd like to use",
+                    "what output they need (Python code, insights report, visualization, etc.)",
                 ],
                 "ai_builder": [
-                    "What type of AI system are you building? (e.g., chatbot, agent, RAG pipeline)",
-                    "What's the main use case or problem you're solving?",
-                    "Which AI models or APIs are you planning to use?",
-                    "Any specific requirements like latency, cost, or accuracy constraints?",
+                    "what type of AI system they're building (chatbot, agent, RAG pipeline, etc.)",
+                    "the main use case or problem they're solving",
+                    "which AI models or APIs they plan to use",
+                    "any specific requirements like latency, cost, or accuracy constraints",
                 ],
                 "research": [
-                    "What's your field of study and academic level?",
-                    "What type of work are you doing? (e.g., literature review, methodology, analysis)",
-                    "What's your specific research question or topic?",
-                    "Any particular requirements from your institution or supervisor?",
+                    "their field of study and academic level",
+                    "what type of work they're doing (literature review, methodology, analysis, etc.)",
+                    "their specific research question or topic",
+                    "any particular requirements from their institution or supervisor",
                 ],
             }
 
-            domain_questions = questions_by_step.get(domain, questions_by_step["coding"])
+            domain_questions = questions_by_domain.get(domain, questions_by_domain["coding"])
 
-            # Determine what to say based on step
-            if conversation_step == 0:
-                # First interaction - acknowledge and ask first question
-                message = f"Great! I'd love to help you with that. {domain_questions[0]}"
-            elif conversation_step < len(domain_questions):
-                # Ask the next question
-                message = f"Got it! {domain_questions[conversation_step]}"
+            # Build conversation history for Claude
+            history_text = ""
+            for msg in self.conversation_history[-8:]:  # Last 8 messages for context
+                role = "User" if msg["role"] == "user" else "You"
+                history_text += f"{role}: {msg['content']}\n"
+
+            # Determine instruction based on step
+            if conversation_step < len(domain_questions):
+                question_topic = domain_questions[conversation_step]
+                instruction = f"""You MUST ask about: {question_topic}
+
+Your response should:
+1. Briefly acknowledge what the user just said (1 short sentence)
+2. Then ask ONE clear question about {question_topic}
+
+Keep your total response to 2-3 sentences MAX. Be warm and conversational."""
             else:
-                # Ready to generate
-                message = "Perfect! I have all the information I need. Type **\"generate\"** and I'll create your optimized prompt!"
+                instruction = """The user has answered all your questions. Tell them you have enough information and ask them to type "generate" to create their optimized prompt.
 
-            print(f"[LUKTHAN] Guided response (step {conversation_step + 1}): {message}")
+Keep it brief and encouraging (2 sentences max)."""
+
+            # Use Claude AI for natural response
+            system_prompt = f"""You are LUKTHAN, a {expert_role} helping someone craft the perfect AI prompt.
+
+CURRENT CONVERSATION:
+{history_text}
+
+YOUR TASK:
+{instruction}
+
+CRITICAL RULES:
+- Ask ONLY ONE question
+- Keep response SHORT (2-3 sentences max)
+- Be warm, friendly, and natural
+- DO NOT list multiple questions
+- DO NOT generate any prompts yet
+- DO NOT say "Great!" or "Got it!" robotically - be natural"""
+
+            print(f"[LUKTHAN] Calling Claude for natural guided response...")
+
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            response = client.messages.create(
+                model=self.model,
+                max_tokens=150,  # Keep responses short
+                system=system_prompt,
+                messages=[{"role": "user", "content": f"Generate your response for step {conversation_step + 1}"}]
+            )
+
+            message = response.content[0].text.strip()
+            print(f"[LUKTHAN] AI Guided response: {message[:100]}...")
 
             # Store assistant response in history
             self.conversation_history.append({
@@ -386,7 +424,8 @@ class IntelligentAgent:
                     "expert_role": expert_role,
                     "mode": "guided",
                     "conversation_step": conversation_step + 1,
-                    "ready_to_generate": conversation_step >= len(domain_questions)
+                    "ready_to_generate": conversation_step >= len(domain_questions),
+                    "ai_powered": True
                 }
             }
 
@@ -394,8 +433,9 @@ class IntelligentAgent:
             print(f"[LUKTHAN] Guided flow error: {e}")
             import traceback
             traceback.print_exc()
+            # Fallback to simple response
             return {
-                "response": "I'd love to help! What are you trying to build?",
+                "response": f"I'd love to help you with that! What specifically are you trying to accomplish?",
                 "response_type": "guided",
                 "quality_score": 50,
                 "domain": domain,
