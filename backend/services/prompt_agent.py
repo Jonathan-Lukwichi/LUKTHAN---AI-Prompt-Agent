@@ -297,125 +297,96 @@ class IntelligentAgent:
         domain: str
     ) -> Dict[str, Any]:
         """
-        Guided expert consultant flow - asks questions to build the perfect prompt.
-        Acts as a domain-specific expert consultant with multi-turn conversation.
+        Guided expert consultant flow - asks questions ONE AT A TIME progressively.
+        STRICTLY one question per response, no prompts until user says "generate".
         """
         try:
             # Get domain-specific expert configuration
             expert_config = EXPERT_CONSULTANTS.get(domain, EXPERT_CONSULTANTS["coding"])
             expert_role = expert_config["role"]
-            base_system_prompt = expert_config["system_prompt"]
-            welcome_message = expert_config.get("welcome", "Hello! Let's build your perfect prompt. What are you working on?")
 
-            # Check if this is first interaction (welcome message)
-            # Look for specific starter phrases that indicate the user wants to start
-            starter_phrases = ["start", "begin", "help me", "i need", "i want", "let's", "ready", "go"]
-            is_starter = any(phrase in user_input.lower() for phrase in starter_phrases) and len(self.conversation_history) == 0
+            # Calculate conversation step (number of exchanges)
+            conversation_step = len(self.conversation_history) // 2
 
-            # If conversation is empty and user sends a short message, send welcome
-            if len(self.conversation_history) == 0 and (is_starter or len(user_input.split()) <= 3):
-                print(f"[LUKTHAN] Guided mode - Sending welcome message for {domain}")
+            print(f"[LUKTHAN] === GUIDED MODE ===")
+            print(f"[LUKTHAN] Domain: {domain}, Step: {conversation_step}, History: {len(self.conversation_history)} messages")
+            print(f"[LUKTHAN] User input: {user_input[:50]}...")
 
-                # Store the welcome interaction
-                self.conversation_history.append({
-                    "role": "user",
-                    "content": user_input,
-                    "timestamp": datetime.now().isoformat()
-                })
-                self.conversation_history.append({
-                    "role": "assistant",
-                    "content": welcome_message,
-                    "timestamp": datetime.now().isoformat()
-                })
-
-                return {
-                    "response": welcome_message,
-                    "response_type": "guided",
-                    "quality_score": 80,
-                    "domain": domain,
-                    "suggestions": [],
-                    "metadata": {
-                        "expert_role": expert_role,
-                        "mode": "guided",
-                        "conversation_step": 1,
-                        "is_welcome": True
-                    }
-                }
-
-            # Check if we should generate final prompt
+            # Check if we should generate final prompt (ONLY on explicit request)
             should_generate = self._should_generate_final_prompt(user_input, self.conversation_history)
 
-            if should_generate:
-                # Generate the final optimized prompt based on gathered info
+            if should_generate and conversation_step >= 2:
+                print(f"[LUKTHAN] >>> GENERATING FINAL PROMPT <<<")
                 return await self._generate_final_guided_prompt(context, settings, thinking_steps, domain)
 
-            # Build Claude messages from conversation history
-            claude_messages = []
-            for msg in self.conversation_history[-10:]:  # Last 10 messages
-                claude_messages.append({
-                    "role": msg["role"],
-                    "content": msg["content"]
-                })
-
-            # Add current user message
-            claude_messages.append({"role": "user", "content": user_input})
-
-            # Build system prompt with context
-            system_prompt = f"""{base_system_prompt}
-
-CONTEXT:
-- Domain: {domain.replace('_', ' ').title()}
-- Target AI: {settings.get('target_ai', 'ChatGPT (GPT-4)')}
-- Expertise Level: {settings.get('expertise_level', 'Professional')}
-
-CURRENT CONVERSATION STEP: {len(self.conversation_history) // 2 + 1}
-
-Remember:
-- Ask ONE focused question at a time
-- Be concise (2-3 sentences max)
-- Build on what the user already told you
-- If you have enough info after 3-4 exchanges, say "Perfect! I have enough information to create your optimized prompt." """
-
-            print(f"[LUKTHAN] Guided mode - Domain: {domain}, Expert: {expert_role}, Step: {len(self.conversation_history) // 2 + 1}")
-
-            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-            response = client.messages.create(
-                model=self.model,
-                max_tokens=400,
-                system=system_prompt,
-                messages=claude_messages
-            )
-
-            message = response.content[0].text
-            print(f"[LUKTHAN] Guided response: {message[:150]}...")
-
-            # Store in conversation history
+            # Store user message in history FIRST
             self.conversation_history.append({
                 "role": "user",
                 "content": user_input,
                 "timestamp": datetime.now().isoformat()
             })
+
+            # Define the SINGLE question to ask based on step
+            questions_by_step = {
+                "coding": [
+                    "What programming language or framework are you working with?",
+                    "What specific task do you need help with? (e.g., building a feature, fixing a bug, refactoring)",
+                    "Are there any specific requirements or constraints I should know about?",
+                    "What format would you like the output in? (e.g., code with comments, step-by-step guide)",
+                ],
+                "data_science": [
+                    "What's the main goal of your analysis? (e.g., prediction, classification, clustering)",
+                    "Can you tell me about your dataset? (size, type of data, key features)",
+                    "Are there any specific algorithms or techniques you'd like to use?",
+                    "What output do you need? (e.g., Python code, insights report, visualization)",
+                ],
+                "ai_builder": [
+                    "What type of AI system are you building? (e.g., chatbot, agent, RAG pipeline)",
+                    "What's the main use case or problem you're solving?",
+                    "Which AI models or APIs are you planning to use?",
+                    "Any specific requirements like latency, cost, or accuracy constraints?",
+                ],
+                "research": [
+                    "What's your field of study and academic level?",
+                    "What type of work are you doing? (e.g., literature review, methodology, analysis)",
+                    "What's your specific research question or topic?",
+                    "Any particular requirements from your institution or supervisor?",
+                ],
+            }
+
+            domain_questions = questions_by_step.get(domain, questions_by_step["coding"])
+
+            # Determine what to say based on step
+            if conversation_step == 0:
+                # First interaction - acknowledge and ask first question
+                message = f"Great! I'd love to help you with that. {domain_questions[0]}"
+            elif conversation_step < len(domain_questions):
+                # Ask the next question
+                message = f"Got it! {domain_questions[conversation_step]}"
+            else:
+                # Ready to generate
+                message = "Perfect! I have all the information I need. Type **\"generate\"** and I'll create your optimized prompt!"
+
+            print(f"[LUKTHAN] Guided response (step {conversation_step + 1}): {message}")
+
+            # Store assistant response in history
             self.conversation_history.append({
                 "role": "assistant",
                 "content": message,
                 "timestamp": datetime.now().isoformat()
             })
 
-            # Check if the response indicates readiness to generate
-            if "enough information" in message.lower() or "ready to create" in message.lower():
-                # Auto-generate prompt on next message
-                print(f"[LUKTHAN] Expert indicated readiness - will generate prompt on next exchange")
-
             return {
                 "response": message,
                 "response_type": "guided",
-                "quality_score": 75 + min(len(self.conversation_history) * 2, 20),  # Score increases with conversation
+                "quality_score": 60 + (conversation_step * 10),
                 "domain": domain,
                 "suggestions": [],
                 "metadata": {
                     "expert_role": expert_role,
                     "mode": "guided",
-                    "conversation_step": len(self.conversation_history) // 2
+                    "conversation_step": conversation_step + 1,
+                    "ready_to_generate": conversation_step >= len(domain_questions)
                 }
             }
 
@@ -424,36 +395,29 @@ Remember:
             import traceback
             traceback.print_exc()
             return {
-                "response": f"I encountered an issue. Let me try a different approach. Could you tell me more about what you're trying to achieve?",
+                "response": "I'd love to help! What are you trying to build?",
                 "response_type": "guided",
                 "quality_score": 50,
                 "domain": domain,
                 "suggestions": [],
-                "metadata": {"error": str(e)}
+                "metadata": {"error": str(e), "conversation_step": 1}
             }
 
     def _should_generate_final_prompt(self, user_input: str, history: List[Dict]) -> bool:
-        """Check if we have enough information to generate the final prompt."""
-        text = user_input.lower()
+        """Check if user EXPLICITLY requested to generate the final prompt."""
+        text = user_input.lower().strip()
 
-        # Explicit triggers
+        # Only explicit triggers - user must clearly ask to generate
         generate_triggers = [
             "generate", "create the prompt", "make the prompt", "build the prompt",
-            "i'm ready", "that's all", "let's do it", "go ahead", "yes please",
-            "enough info", "have enough", "create it", "generate it"
+            "create it", "generate it", "make it", "build it",
+            "generate prompt", "create prompt", "ready", "go ahead",
+            "yes generate", "ok generate", "please generate"
         ]
 
-        if any(trigger in text for trigger in generate_triggers):
-            return True
-
-        # After 4+ exchanges, check if last response indicated readiness
-        if len(history) >= 8:  # 4 exchanges = 8 messages
-            last_assistant = None
-            for msg in reversed(history):
-                if msg["role"] == "assistant":
-                    last_assistant = msg["content"].lower()
-                    break
-            if last_assistant and "enough information" in last_assistant:
+        for trigger in generate_triggers:
+            if trigger in text:
+                print(f"[LUKTHAN] Generate trigger detected: '{trigger}'")
                 return True
 
         return False
