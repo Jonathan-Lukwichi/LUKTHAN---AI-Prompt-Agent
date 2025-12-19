@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from services.prompt_agent import process_message, optimize_prompt
+from services.prompt_agent import process_message, optimize_prompt, reset_conversation
 from database import get_db
 from database.crud import (
     create_prompt_session,
@@ -234,5 +234,15 @@ async def clear_history(db: Session = Depends(get_db)):
     try:
         clear_all_sessions(db)
         return {"success": True, "message": "All history cleared"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/reset-conversation")
+async def reset_conversation_endpoint():
+    """Reset the guided mode conversation history."""
+    try:
+        result = reset_conversation()
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

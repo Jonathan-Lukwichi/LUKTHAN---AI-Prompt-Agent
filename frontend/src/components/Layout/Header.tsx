@@ -18,6 +18,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useChatStore, type Settings as SettingsType } from '../../stores/chatStore';
+import { resetConversation } from '../../api/client';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -136,7 +137,16 @@ const Header = ({
                     return (
                       <button
                         key={domain.id}
-                        onClick={() => { setSettings({ domain: domain.id }); setDomainDropdownOpen(false); }}
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          // Reset conversation when domain changes in guided mode
+                          if (settings.mode === 'guided' && settings.domain !== domain.id) {
+                            try { await resetConversation(); } catch (err) { console.log('Reset error:', err); }
+                          }
+                          setSettings({ domain: domain.id });
+                          setDomainDropdownOpen(false);
+                        }}
                         className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-all ${
                           settings.domain === domain.id ? 'text-cyan-400 bg-cyan-500/10' : 'text-gray-300 hover:text-white hover:bg-white/5'
                         }`}
@@ -161,7 +171,15 @@ const Header = ({
             return (
               <button
                 key={mode.id}
-                onClick={() => setSettings({ mode: mode.id })}
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  // Reset conversation when switching modes
+                  if (settings.mode !== mode.id) {
+                    try { await resetConversation(); } catch (err) { console.log('Reset error:', err); }
+                  }
+                  setSettings({ mode: mode.id });
+                }}
                 title={mode.description}
                 className={`flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${
                   settings.mode === mode.id
@@ -205,7 +223,12 @@ const Header = ({
                       {group.options.map((option) => (
                         <button
                           key={option}
-                          onClick={() => { setSettings({ target_ai: option }); setModelDropdownOpen(false); }}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSettings({ target_ai: option });
+                            setModelDropdownOpen(false);
+                          }}
                           className={`w-full text-left px-3 py-1.5 text-xs transition-all ${
                             settings.target_ai === option ? 'text-cyan-400 bg-cyan-500/10' : 'text-gray-300 hover:text-white hover:bg-white/5'
                           }`}

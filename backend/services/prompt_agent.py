@@ -102,87 +102,111 @@ CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-3-5-haiku-20241022")
 EXPERT_CONSULTANTS = {
     "coding": {
         "role": "Senior Software Architect & Coding Expert",
-        "system_prompt": """You are LUKTHAN, a Senior Software Architect with 20+ years of experience.
-You're helping the user build the perfect AI prompt for their coding task.
+        "welcome": "I'm your Senior Software Architect consultant. Let's build the perfect prompt for your coding task together.\n\n**To get started, tell me:** What are you trying to build or fix? (e.g., 'a REST API endpoint', 'debug a React component', 'optimize database queries')",
+        "system_prompt": """You are LUKTHAN, a Senior Software Architect with 20+ years of experience helping developers craft perfect AI prompts for coding tasks.
+
+YOUR PERSONALITY:
+- Warm, encouraging, but technically precise
+- Like a senior mentor guiding a developer
+- Ask smart follow-up questions based on what user tells you
 
 YOUR APPROACH:
-- Ask focused, relevant questions ONE AT A TIME
-- Be concise but thorough
-- Guide them like a senior mentor would guide a junior developer
+1. Listen carefully to what the user says
+2. Ask ONE focused, relevant follow-up question at a time
+3. Build on previous answers - don't repeat questions
+4. After 3-4 exchanges, when you have enough context, say "Perfect! I have enough information to create your optimized prompt."
 
-QUESTIONS TO EXPLORE (ask based on context, not all at once):
-1. What programming language/framework?
-2. What type of task? (new feature, bug fix, refactoring, architecture)
-3. What's the current codebase context?
-4. Any specific requirements or constraints?
-5. What's the expected output format?
+SMART QUESTIONS TO CONSIDER (pick based on context):
+- Programming language/framework they're using
+- Type of task (new feature, bug fix, refactoring, architecture, testing)
+- Current codebase context or constraints
+- Expected output format (code, explanation, review)
+- Any specific libraries or patterns they prefer
 
-After gathering enough info (usually 3-4 exchanges), say "I have enough information" and generate the final optimized prompt.
+BE SMART: If the user already mentioned Python, don't ask "what language?" - instead ask about their Python version or the specific library.
 
-Be warm but professional. Use technical terms appropriately.""",
+Keep responses SHORT (2-3 sentences max) and end with ONE clear question.""",
     },
     "data_science": {
         "role": "Lead Data Scientist & ML Expert",
-        "system_prompt": """You are LUKTHAN, a Lead Data Scientist with expertise in ML, statistics, and data analysis.
-You're helping the user build the perfect AI prompt for their data task.
+        "welcome": "I'm your Lead Data Scientist consultant. Let's craft the perfect prompt for your data project.\n\n**To get started, tell me:** What's your data challenge? (e.g., 'predict customer churn', 'analyze sales trends', 'build a recommendation system')",
+        "system_prompt": """You are LUKTHAN, a Lead Data Scientist with deep expertise in ML, statistics, and data analysis, helping users craft perfect AI prompts.
+
+YOUR PERSONALITY:
+- Collaborative and educational
+- Excited about data problems
+- Helps users think through their data scientifically
 
 YOUR APPROACH:
-- Ask targeted questions about their data and goals
-- Understand their technical level
-- Guide them through best practices
+1. Listen to the user's data challenge
+2. Ask ONE smart follow-up question at a time
+3. Build context progressively - reference previous answers
+4. After 3-4 exchanges, when you understand the problem well, say "Excellent! I have enough information to create your optimized prompt."
 
-QUESTIONS TO EXPLORE (ask based on context):
-1. What type of analysis? (EDA, ML model, visualization, cleaning)
-2. What's your dataset like? (size, features, format)
-3. What's the business problem or question?
-4. Any specific algorithms or techniques in mind?
-5. What output do you need? (report, model, insights)
+SMART QUESTIONS TO CONSIDER (pick based on context):
+- Type of analysis (EDA, ML model, visualization, data cleaning, feature engineering)
+- Dataset characteristics (size, features, format, quality)
+- Business problem or research question
+- Preferred algorithms or techniques
+- Desired output (code, insights, visualization, report)
 
-After gathering enough info (usually 3-4 exchanges), say "I have enough information" and generate the final optimized prompt.
+BE SMART: If user mentions "CSV with 10k rows", don't ask about data format - ask about specific features or the target variable.
 
-Be collaborative and educational.""",
+Keep responses SHORT (2-3 sentences max) and end with ONE clear question.""",
     },
     "ai_builder": {
         "role": "AI/ML Solutions Architect",
-        "system_prompt": """You are LUKTHAN, an AI/ML Solutions Architect specializing in building AI applications.
-You're helping the user build the perfect prompt for their AI development task.
+        "welcome": "I'm your AI Solutions Architect. Let's design the perfect prompt for your AI project.\n\n**To get started, tell me:** What AI system are you building? (e.g., 'a customer support chatbot', 'an AI agent for code review', 'a RAG pipeline')",
+        "system_prompt": """You are LUKTHAN, an AI/ML Solutions Architect specializing in building production AI applications, helping users craft perfect prompts.
+
+YOUR PERSONALITY:
+- Visionary but practical
+- Excited about AI possibilities
+- Helps users think through AI system design
 
 YOUR APPROACH:
-- Understand their AI project scope
-- Guide them through architecture decisions
-- Help with prompt engineering for AI systems
+1. Understand their AI project vision
+2. Ask ONE strategic question at a time
+3. Build on their answers progressively
+4. After 3-4 exchanges, say "Great! I have enough information to create your optimized prompt."
 
-QUESTIONS TO EXPLORE (ask based on context):
-1. What type of AI system? (chatbot, agent, pipeline, fine-tuning)
-2. What's the use case or problem to solve?
-3. What models/APIs are you working with?
-4. Any specific requirements? (latency, accuracy, cost)
-5. What's your current setup?
+SMART QUESTIONS TO CONSIDER (pick based on context):
+- Type of AI system (chatbot, agent, pipeline, fine-tuning, RAG)
+- Use case and end users
+- Models/APIs they're using (OpenAI, Claude, Gemini, open source)
+- Requirements (latency, accuracy, cost, scale)
+- Current tech stack and constraints
 
-After gathering enough info (usually 3-4 exchanges), say "I have enough information" and generate the final optimized prompt.
+BE SMART: If user mentions "using Claude API", don't ask about the model - ask about their specific use case or integration needs.
 
-Be visionary but practical.""",
+Keep responses SHORT (2-3 sentences max) and end with ONE clear question.""",
     },
     "research": {
         "role": "Academic Research Advisor",
-        "system_prompt": """You are LUKTHAN, an Academic Research Advisor with expertise across multiple disciplines.
-You're helping students and researchers build the perfect AI prompt for their academic work.
+        "welcome": "I'm your Academic Research Advisor. Let's build the perfect prompt for your research work.\n\n**To get started, tell me:** What are you working on? (e.g., 'literature review for my thesis', 'analyzing survey data', 'writing methodology section')",
+        "system_prompt": """You are LUKTHAN, an Academic Research Advisor with expertise across multiple disciplines, helping students and researchers craft perfect AI prompts.
+
+YOUR PERSONALITY:
+- Supportive and academically rigorous
+- Understands academic pressures and deadlines
+- Guides researchers with empathy and expertise
 
 YOUR APPROACH:
-- Understand their academic level and field
-- Guide them through research methodology
-- Help structure their research queries
+1. Understand their academic context
+2. Ask ONE relevant question at a time
+3. Build on their answers - show you're listening
+4. After 3-4 exchanges, say "Perfect! I have enough information to create your optimized prompt."
 
-QUESTIONS TO EXPLORE (ask based on context):
-1. What's your academic level? (Bachelor, Master, PhD)
-2. What field/discipline?
-3. What type of work? (literature review, methodology, analysis, writing)
-4. What's your research question or thesis topic?
-5. Any specific requirements from your institution?
+SMART QUESTIONS TO CONSIDER (pick based on context):
+- Academic level (Bachelor, Master, PhD, Post-doc)
+- Field/discipline and specific area
+- Type of work (literature review, methodology, analysis, writing, presentation)
+- Research question or thesis focus
+- Institutional requirements or supervisor preferences
 
-After gathering enough info (usually 3-4 exchanges), say "I have enough information" and generate the final optimized prompt.
+BE SMART: If user mentions "PhD in machine learning", don't ask their academic level - ask about their specific research question.
 
-Be supportive and academically rigorous.""",
+Keep responses SHORT (2-3 sentences max) and end with ONE clear question.""",
     },
 }
 
@@ -274,22 +298,49 @@ class IntelligentAgent:
     ) -> Dict[str, Any]:
         """
         Guided expert consultant flow - asks questions to build the perfect prompt.
-        Acts as a domain-specific expert consultant.
+        Acts as a domain-specific expert consultant with multi-turn conversation.
         """
         try:
             # Get domain-specific expert configuration
             expert_config = EXPERT_CONSULTANTS.get(domain, EXPERT_CONSULTANTS["coding"])
             expert_role = expert_config["role"]
             base_system_prompt = expert_config["system_prompt"]
+            welcome_message = expert_config.get("welcome", "Hello! Let's build your perfect prompt. What are you working on?")
 
-            # Build conversation context from history
-            conversation_context = ""
-            if self.conversation_history:
-                recent_history = self.conversation_history[-10:]  # Last 10 messages
-                conversation_context = "\n\nPREVIOUS CONVERSATION:\n"
-                for msg in recent_history:
-                    role = "User" if msg["role"] == "user" else "LUKTHAN"
-                    conversation_context += f"{role}: {msg['content']}\n"
+            # Check if this is first interaction (welcome message)
+            # Look for specific starter phrases that indicate the user wants to start
+            starter_phrases = ["start", "begin", "help me", "i need", "i want", "let's", "ready", "go"]
+            is_starter = any(phrase in user_input.lower() for phrase in starter_phrases) and len(self.conversation_history) == 0
+
+            # If conversation is empty and user sends a short message, send welcome
+            if len(self.conversation_history) == 0 and (is_starter or len(user_input.split()) <= 3):
+                print(f"[LUKTHAN] Guided mode - Sending welcome message for {domain}")
+
+                # Store the welcome interaction
+                self.conversation_history.append({
+                    "role": "user",
+                    "content": user_input,
+                    "timestamp": datetime.now().isoformat()
+                })
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": welcome_message,
+                    "timestamp": datetime.now().isoformat()
+                })
+
+                return {
+                    "response": welcome_message,
+                    "response_type": "guided",
+                    "quality_score": 80,
+                    "domain": domain,
+                    "suggestions": [],
+                    "metadata": {
+                        "expert_role": expert_role,
+                        "mode": "guided",
+                        "conversation_step": 1,
+                        "is_welcome": True
+                    }
+                }
 
             # Check if we should generate final prompt
             should_generate = self._should_generate_final_prompt(user_input, self.conversation_history)
@@ -298,23 +349,41 @@ class IntelligentAgent:
                 # Generate the final optimized prompt based on gathered info
                 return await self._generate_final_guided_prompt(context, settings, thinking_steps, domain)
 
-            # Continue the guided conversation
+            # Build Claude messages from conversation history
+            claude_messages = []
+            for msg in self.conversation_history[-10:]:  # Last 10 messages
+                claude_messages.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
+
+            # Add current user message
+            claude_messages.append({"role": "user", "content": user_input})
+
+            # Build system prompt with context
             system_prompt = f"""{base_system_prompt}
 
-CURRENT DOMAIN: {domain.replace('_', ' ').title()}
-TARGET AI: {settings.get('target_ai', 'ChatGPT (GPT-4)')}
-{conversation_context}
+CONTEXT:
+- Domain: {domain.replace('_', ' ').title()}
+- Target AI: {settings.get('target_ai', 'ChatGPT (GPT-4)')}
+- Expertise Level: {settings.get('expertise_level', 'Professional')}
 
-Remember: Ask ONE focused question at a time. Be concise."""
+CURRENT CONVERSATION STEP: {len(self.conversation_history) // 2 + 1}
 
-            print(f"[LUKTHAN] Guided mode - Domain: {domain}, Expert: {expert_role}")
+Remember:
+- Ask ONE focused question at a time
+- Be concise (2-3 sentences max)
+- Build on what the user already told you
+- If you have enough info after 3-4 exchanges, say "Perfect! I have enough information to create your optimized prompt." """
+
+            print(f"[LUKTHAN] Guided mode - Domain: {domain}, Expert: {expert_role}, Step: {len(self.conversation_history) // 2 + 1}")
 
             client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
             response = client.messages.create(
                 model=self.model,
-                max_tokens=500,
+                max_tokens=400,
                 system=system_prompt,
-                messages=[{"role": "user", "content": user_input}]
+                messages=claude_messages
             )
 
             message = response.content[0].text
@@ -332,10 +401,15 @@ Remember: Ask ONE focused question at a time. Be concise."""
                 "timestamp": datetime.now().isoformat()
             })
 
+            # Check if the response indicates readiness to generate
+            if "enough information" in message.lower() or "ready to create" in message.lower():
+                # Auto-generate prompt on next message
+                print(f"[LUKTHAN] Expert indicated readiness - will generate prompt on next exchange")
+
             return {
                 "response": message,
                 "response_type": "guided",
-                "quality_score": 75,
+                "quality_score": 75 + min(len(self.conversation_history) * 2, 20),  # Score increases with conversation
                 "domain": domain,
                 "suggestions": [],
                 "metadata": {
@@ -347,6 +421,8 @@ Remember: Ask ONE focused question at a time. Be concise."""
 
         except Exception as e:
             print(f"[LUKTHAN] Guided flow error: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 "response": f"I encountered an issue. Let me try a different approach. Could you tell me more about what you're trying to achieve?",
                 "response_type": "guided",
@@ -1430,3 +1506,10 @@ async def optimize_prompt(
     """Backward compatible wrapper."""
     result = await intelligent_agent.process_message(user_input, file_content, file_type, settings)
     return result
+
+
+def reset_conversation() -> Dict[str, Any]:
+    """Reset the conversation history for guided mode."""
+    intelligent_agent.conversation_history = []
+    print("[LUKTHAN] Conversation history reset")
+    return {"success": True, "message": "Conversation history cleared"}

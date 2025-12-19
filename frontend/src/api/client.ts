@@ -122,4 +122,9 @@ export const clearHistory = async (): Promise<void> => {
   await apiClient.delete('/prompts/history');
 };
 
+export const resetConversation = async (): Promise<{ success: boolean; message: string }> => {
+  const response = await apiClient.post<{ success: boolean; message: string }>('/prompts/reset-conversation');
+  return response.data;
+};
+
 export default apiClient;
