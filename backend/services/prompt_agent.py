@@ -251,9 +251,9 @@ class IntelligentAgent:
         # Step 2: Detect user intent
         intent = self._detect_intent(user_input, context)
 
-        # Step 3: Check if GUIDED mode is active
-        if mode == "guided" and intent not in ["conversation"]:
-            # Use domain-specific expert consultant
+        # Step 3: Check if GUIDED mode is active - ALWAYS use guided flow when mode is "guided"
+        if mode == "guided":
+            # Use domain-specific expert consultant (ignores intent detection)
             result = await self._guided_expert_flow(user_input, context, settings, thinking_steps, domain)
             result["intent"] = "guided"
             result["thinking"] = thinking_steps
