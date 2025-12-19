@@ -17,7 +17,7 @@ import {
   Target,
   MessageSquare
 } from 'lucide-react';
-import { useChatStore, type Settings as SettingsType } from '../../stores/chatStore';
+import { useChatStore } from '../../stores/chatStore';
 import { resetConversation } from '../../api/client';
 
 interface HeaderProps {
@@ -49,7 +49,7 @@ const Header = ({
   contextPanelOpen,
   onBackToLanding
 }: HeaderProps) => {
-  const { settings, setSettings } = useChatStore();
+  const { settings, setSettings, clearMessages } = useChatStore();
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [domainDropdownOpen, setDomainDropdownOpen] = useState(false);
 
@@ -140,9 +140,10 @@ const Header = ({
                         type="button"
                         onClick={async (e) => {
                           e.stopPropagation();
-                          // Reset conversation when domain changes in guided mode
-                          if (settings.mode === 'guided' && settings.domain !== domain.id) {
+                          // Reset backend conversation and clear frontend chat when domain changes
+                          if (settings.domain !== domain.id) {
                             try { await resetConversation(); } catch (err) { console.log('Reset error:', err); }
+                            clearMessages(); // Clear frontend chat
                           }
                           setSettings({ domain: domain.id });
                           setDomainDropdownOpen(false);
@@ -174,9 +175,10 @@ const Header = ({
                 type="button"
                 onClick={async (e) => {
                   e.stopPropagation();
-                  // Reset conversation when switching modes
+                  // Reset backend conversation and clear frontend chat when switching modes
                   if (settings.mode !== mode.id) {
                     try { await resetConversation(); } catch (err) { console.log('Reset error:', err); }
+                    clearMessages(); // Clear frontend chat
                   }
                   setSettings({ mode: mode.id });
                 }}
