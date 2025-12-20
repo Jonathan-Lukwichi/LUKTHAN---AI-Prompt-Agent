@@ -16,6 +16,7 @@ export interface ChatRequest {
   file_content?: string | null;
   file_type?: string | null;
   settings: Settings;
+  guided_context?: Record<string, any>;
 }
 
 export interface FileUploadResponse {
