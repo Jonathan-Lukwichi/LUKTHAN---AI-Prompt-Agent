@@ -36,6 +36,8 @@ export interface AgentResponse {
     depth?: string;
     approach?: string;
     error?: string;
+    conversation_step?: number;
+    ready_to_generate?: boolean;
   };
 }
 
@@ -216,8 +218,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setLoading: (isLoading) => set({ isLoading }),
 
-  setThinking: (isThinking, message = null) =>
-    set({ isThinking, currentThinkingMessage: message }),
+  setThinking: (isThinking, message) =>
+    set({ isThinking, currentThinkingMessage: message ?? null }),
 
   setError: (error) => set({ error }),
 

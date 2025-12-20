@@ -105,7 +105,7 @@ ${response.suggestions?.map(s => `- ${s}`).join('\n') || 'No suggestions'}
   // Regenerate Prompt
   const handleRegenerate = () => {
     if (!lastUserMessage) return;
-    regenerate();
+    regenerate(lastUserMessage.content, lastUserMessage.fileContent, lastUserMessage.fileType);
   };
 
   if (!isOpen) return null;
