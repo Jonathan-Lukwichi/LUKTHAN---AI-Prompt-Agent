@@ -25,10 +25,8 @@ services:
         value: https://lukthan-frontend.onrender.com
 
   # Frontend Static Site
-  - type: web
+  - type: static
     name: lukthan-frontend
-    runtime: static
-    region: oregon
     plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
