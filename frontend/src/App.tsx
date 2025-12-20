@@ -76,7 +76,7 @@ function App() {
           />
 
           <div className="flex-1 flex overflow-hidden">
-            <Sidebar isOpen={sidebarOpen} />
+            <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
             <main className="flex-1 flex flex-col overflow-hidden bg-[#030014]">
               {hasMessages ? <ChatContainer /> : <WelcomeHero />}
             </main>

@@ -13,16 +13,20 @@ import {
   MessageSquare,
   Trash2,
   ChevronRight,
+  ChevronLeft,
   Loader2,
-  Zap
+  Zap,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
   collapsed?: boolean;
+  onToggle?: () => void;
 }
 
-const Sidebar = ({ isOpen, collapsed = false }: SidebarProps) => {
+const Sidebar = ({ isOpen, collapsed = false, onToggle }: SidebarProps) => {
   const { messages, clearMessages, addMessage } = useChatStore();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -75,7 +79,37 @@ const Sidebar = ({ isOpen, collapsed = false }: SidebarProps) => {
     toast.success('Loaded from history');
   };
 
-  if (!isOpen) return null;
+  // Collapsed state - show only toggle button
+  if (!isOpen) {
+    return (
+      <motion.aside
+        initial={{ width: 0, opacity: 0 }}
+        animate={{ width: 48, opacity: 1 }}
+        exit={{ width: 0, opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="bg-[#0a0a1a] border-r border-violet-500/20 flex flex-col h-full"
+      >
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={onToggle}
+          className="mx-auto mt-2 p-2.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-violet-500/20 border border-cyan-500/30 text-cyan-400 hover:shadow-[0_0_15px_rgba(0,255,255,0.3)] transition-all"
+          title="Open Sidebar"
+        >
+          <PanelLeftOpen className="w-4 h-4" />
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={clearMessages}
+          className="mx-auto mt-2 p-2.5 rounded-xl bg-gradient-to-r from-violet-500/20 to-pink-500/20 border border-violet-500/30 text-violet-400 hover:shadow-[0_0_15px_rgba(139,92,246,0.3)] transition-all"
+          title="New Chat"
+        >
+          <Plus className="w-4 h-4" />
+        </motion.button>
+      </motion.aside>
+    );
+  }
 
   if (collapsed) {
     return (
@@ -93,7 +127,27 @@ const Sidebar = ({ isOpen, collapsed = false }: SidebarProps) => {
   }
 
   return (
-    <aside className="w-52 bg-gradient-to-b from-[#0a0a1a] to-[#030014] border-r border-violet-500/20 flex flex-col h-full">
+    <motion.aside
+      initial={{ width: 0, opacity: 0 }}
+      animate={{ width: 208, opacity: 1 }}
+      exit={{ width: 0, opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="bg-gradient-to-b from-[#0a0a1a] to-[#030014] border-r border-violet-500/20 flex flex-col h-full overflow-hidden"
+    >
+      {/* Toggle Button */}
+      <div className="flex items-center justify-between p-2 border-b border-violet-500/10">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={onToggle}
+          className="p-1.5 rounded-lg bg-white/5 border border-violet-500/20 text-gray-400 hover:text-cyan-400 hover:border-cyan-500/30 transition-all"
+          title="Close Sidebar"
+        >
+          <PanelLeftClose className="w-4 h-4" />
+        </motion.button>
+        <span className="text-[10px] text-gray-500 uppercase tracking-wider">Menu</span>
+      </div>
+
       {/* New Chat Button - Compact */}
       <div className="p-2">
         <motion.button
@@ -169,7 +223,7 @@ const Sidebar = ({ isOpen, collapsed = false }: SidebarProps) => {
           Clear History
         </button>
       </div>
-    </aside>
+    </motion.aside>
   );
 };
 
