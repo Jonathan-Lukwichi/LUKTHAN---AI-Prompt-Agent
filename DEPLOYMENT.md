@@ -6,7 +6,7 @@ Deploy LUKTHAN AI Prompt Agent to production. Choose the option that best fits y
 
 ## Prerequisites
 
-1. **Gemini API Key** - Get one free at [Google AI Studio](https://makersuite.google.com/app/apikey)
+1. **Anthropic API Key** - Get one at [Anthropic Console](https://console.anthropic.com/)
 2. **Git** - Push your code to GitHub
 3. **Node.js 18+** and **Python 3.11+** (for local testing)
 
@@ -23,7 +23,8 @@ Deploy LUKTHAN AI Prompt Agent to production. Choose the option that best fits y
 3. Select your repository and choose the `backend` folder
 4. Add environment variables:
    ```
-   GEMINI_API_KEY=your_api_key_here
+   ANTHROPIC_API_KEY=sk-ant-your-api-key-here
+   CLAUDE_MODEL=claude-3-5-haiku-20241022
    SECRET_KEY=generate_a_random_string
    ALLOWED_HOSTS=https://your-frontend.vercel.app
    DATABASE_URL=sqlite:///./lukthan.db
@@ -56,7 +57,18 @@ ALLOWED_HOSTS=https://your-app.vercel.app
 
 **Cost:** Free tier available | **Difficulty:** Easy | **Time:** ~20 minutes
 
-### Deploy Backend
+### Using render.yaml (Automatic)
+
+1. Go to [Render.com](https://render.com) and sign up
+2. Click "New" → "Blueprint"
+3. Connect your GitHub repo
+4. Render will detect `render.yaml` and create both services
+5. Add your `ANTHROPIC_API_KEY` in the dashboard
+6. Deploy!
+
+### Manual Deploy
+
+#### Deploy Backend
 
 1. Go to [Render.com](https://render.com) and sign up
 2. Click "New" → "Web Service"
@@ -66,10 +78,18 @@ ALLOWED_HOSTS=https://your-app.vercel.app
    - **Runtime:** Python 3
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
-5. Add environment variables (same as Railway)
+5. Add environment variables:
+   ```
+   ANTHROPIC_API_KEY=sk-ant-your-api-key-here
+   CLAUDE_MODEL=claude-3-5-haiku-20241022
+   SECRET_KEY=generate_a_random_string
+   ALLOWED_HOSTS=https://your-frontend.onrender.com
+   DATABASE_URL=sqlite:///./lukthan.db
+   DEBUG=false
+   ```
 6. Deploy
 
-### Deploy Frontend
+#### Deploy Frontend
 
 1. Click "New" → "Static Site"
 2. Connect the same repo
@@ -102,8 +122,10 @@ cd lukthan-ai-prompt-agent
 
 # Create environment file
 cat > .env << EOF
-GEMINI_API_KEY=your_api_key_here
+ANTHROPIC_API_KEY=sk-ant-your-api-key-here
+CLAUDE_MODEL=claude-3-5-haiku-20241022
 SECRET_KEY=$(openssl rand -hex 32)
+ALLOWED_HOSTS=http://localhost:80,http://your-domain.com
 EOF
 ```
 
@@ -188,7 +210,11 @@ sudo certbot --nginx -d yourdomain.com -d api.yourdomain.com
 3. Add two components:
    - **Backend (Web Service):** Point to `backend` folder
    - **Frontend (Static Site):** Point to `frontend` folder
-4. Configure environment variables
+4. Configure environment variables:
+   ```
+   ANTHROPIC_API_KEY=sk-ant-your-api-key-here
+   CLAUDE_MODEL=claude-3-5-haiku-20241022
+   ```
 5. Deploy
 
 ---
@@ -198,7 +224,8 @@ sudo certbot --nginx -d yourdomain.com -d api.yourdomain.com
 ### Backend (.env)
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `GEMINI_API_KEY` | Your Gemini API key | `AIza...` |
+| `ANTHROPIC_API_KEY` | Your Anthropic API key | `sk-ant-...` |
+| `CLAUDE_MODEL` | Claude model to use | `claude-3-5-haiku-20241022` |
 | `DATABASE_URL` | Database connection | `sqlite:///./lukthan.db` |
 | `SECRET_KEY` | App secret key | Random 32+ char string |
 | `ALLOWED_HOSTS` | CORS allowed origins | `https://app.com,https://www.app.com` |
@@ -209,6 +236,13 @@ sudo certbot --nginx -d yourdomain.com -d api.yourdomain.com
 |----------|-------------|---------|
 | `VITE_API_BASE_URL` | Backend API URL | `https://api.yourdomain.com/api` |
 
+### Claude Model Options
+| Model | Description | Use Case |
+|-------|-------------|----------|
+| `claude-3-5-haiku-20241022` | Fast & affordable | Default, good for most uses |
+| `claude-3-5-sonnet-20241022` | Balanced | Better quality responses |
+| `claude-3-opus-20240229` | Most capable | Complex tasks, highest quality |
+
 ---
 
 ## Post-Deployment Checklist
@@ -217,6 +251,8 @@ sudo certbot --nginx -d yourdomain.com -d api.yourdomain.com
 - [ ] Frontend loads without errors
 - [ ] Chat functionality works (test "Hello!")
 - [ ] Prompt optimization works
+- [ ] Voice input works (if microphone available)
+- [ ] Document upload works
 - [ ] CORS is properly configured (no console errors)
 - [ ] SSL certificates are valid (if using custom domain)
 
@@ -230,10 +266,15 @@ Ensure `ALLOWED_HOSTS` in backend includes your frontend URL exactly (with `http
 ### API Connection Failed
 Check that `VITE_API_BASE_URL` ends with `/api` and points to your backend.
 
-### Gemini API Errors
-1. Verify API key is correct
-2. Check API key has Gemini API enabled in Google Cloud Console
-3. Ensure you're using `gemini-2.0-flash` model (older models deprecated)
+### Claude API Errors
+1. Verify API key is correct and starts with `sk-ant-`
+2. Check API key has sufficient credits at [Anthropic Console](https://console.anthropic.com/)
+3. Ensure the model name is spelled correctly (e.g., `claude-3-5-haiku-20241022`)
+
+### Voice Transcription Issues
+1. Ensure browser has microphone permissions
+2. Check backend logs for ffmpeg errors
+3. The Docker image includes ffmpeg automatically
 
 ### Docker Issues
 ```bash
@@ -243,6 +284,9 @@ docker-compose build --no-cache
 # Check logs
 docker-compose logs backend
 docker-compose logs frontend
+
+# Check backend health
+curl http://localhost:8000/health
 ```
 
 ---
@@ -254,6 +298,21 @@ For high traffic:
 2. **Caching:** Add Redis for session/response caching
 3. **CDN:** Put Cloudflare in front for static assets
 4. **Multiple Instances:** Use Railway/Render autoscaling or Kubernetes
+
+---
+
+## Quick Start Summary
+
+**Fastest Deployment (Render):**
+1. Push code to GitHub
+2. Go to render.com → New → Blueprint
+3. Connect repo (render.yaml auto-configures everything)
+4. Add `ANTHROPIC_API_KEY`
+5. Deploy!
+
+**Your app will be live at:**
+- Frontend: `https://lukthan-frontend.onrender.com`
+- Backend: `https://lukthan-backend.onrender.com`
 
 ---
 

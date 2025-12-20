@@ -268,15 +268,15 @@ class IntelligentAgent:
             return result
 
         elif intent == "conversation":
-            # User wants to have a conversation
-            result = await self._have_conversation(user_input, thinking_steps)
+            # User wants to have a conversation (pass context for document analysis)
+            result = await self._have_conversation(user_input, thinking_steps, context)
             result["intent"] = "conversation"
             result["thinking"] = thinking_steps
             return result
 
         elif intent == "question":
-            # User is asking a question (life, philosophy, general)
-            result = await self._answer_question(user_input, thinking_steps)
+            # User is asking a question (life, philosophy, general) - may include document
+            result = await self._answer_question(user_input, thinking_steps, context)
             result["intent"] = "question"
             result["thinking"] = thinking_steps
             return result
@@ -615,8 +615,18 @@ Output ONLY the prompt, no explanations."""
         if tech_score >= 2:
             return "prompt_optimization"
 
-        # If attached file, likely wants optimization
+        # If attached file, check what user wants to do with it
         if context:
+            # User wants to ask about / analyze the document
+            doc_question_patterns = [
+                "what", "explain", "summarize", "summary", "tell me about",
+                "read", "analyze", "review", "check", "look at",
+                "can you", "do you see", "is there", "find"
+            ]
+            if any(p in text for p in doc_question_patterns):
+                return "question"  # Will use document Q&A mode
+
+            # Default to prompt optimization for documents without questions
             return "prompt_optimization"
 
         # Short to medium messages without tech keywords = conversation
@@ -730,11 +740,36 @@ Return ONLY the JSON array, no other text."""
 
             return thinking_steps
 
-    async def _have_conversation(self, user_input: str, thinking_steps: List[Dict]) -> Dict[str, Any]:
-        """Handle casual conversation naturally using Claude API."""
+    async def _have_conversation(self, user_input: str, thinking_steps: List[Dict], context: str = "") -> Dict[str, Any]:
+        """Handle casual conversation naturally using Claude API. Also handles document analysis."""
         try:
-            # Use Claude for natural conversation
-            system_prompt = """You are LUKTHAN, a friendly and intelligent AI assistant. You enjoy natural conversations with humans.
+            # Check if there's a document attached
+            has_document = bool(context and len(context.strip()) > 50)
+
+            if has_document:
+                # Document analysis mode
+                system_prompt = """You are LUKTHAN, a friendly and intelligent AI assistant that can read and analyze documents.
+
+DOCUMENT ANALYSIS GUIDELINES:
+- You have been provided with document content - READ it carefully
+- If the user asks about the document, reference specific parts of it
+- Summarize key points if asked
+- Answer questions based on the document content
+- If the document is code, you can explain, review, or suggest improvements
+- If it's text, you can summarize, analyze, or answer questions about it
+- Be helpful, accurate, and reference the actual document content in your answers
+
+Be personable and conversational while being informative."""
+
+                # Build message with document context
+                user_message = f"User says: {user_input}\n\n--- DOCUMENT CONTENT ---\n{context[:4000]}"
+                if len(context) > 4000:
+                    user_message += f"\n... [Document truncated, {len(context)} total characters]"
+
+                print(f"[LUKTHAN] Document analysis mode - {len(context)} chars of content")
+            else:
+                # Regular conversation mode
+                system_prompt = """You are LUKTHAN, a friendly and intelligent AI assistant. You enjoy natural conversations with humans.
 
 GUIDELINES:
 - For simple greetings (hi, hello, hey, good morning): Keep it brief and warm (1-2 sentences)
@@ -745,7 +780,7 @@ GUIDELINES:
 - Match the user's energy and tone
 
 You can discuss any topic - life, philosophy, ideas, jokes, or just chat casually. Be genuine and conversational."""
-
+                user_message = user_input
 
             if not ANTHROPIC_API_KEY:
                 raise ValueError("ANTHROPIC_API_KEY is not set!")
@@ -756,9 +791,9 @@ You can discuss any topic - life, philosophy, ideas, jokes, or just chat casuall
             print(f"[LUKTHAN] Sending request to Claude {self.model}...")
             response = client.messages.create(
                 model=self.model,
-                max_tokens=500,  # Allow for natural conversation length
+                max_tokens=1000 if has_document else 500,  # More tokens for document analysis
                 system=system_prompt,
-                messages=[{"role": "user", "content": user_input}]
+                messages=[{"role": "user", "content": user_message}]
             )
 
             message = response.content[0].text
@@ -809,15 +844,32 @@ You can discuss any topic - life, philosophy, ideas, jokes, or just chat casuall
                 "metadata": {"error": str(e), "error_type": type(e).__name__}
             }
 
-    async def _answer_question(self, user_input: str, thinking_steps: List[Dict]) -> Dict[str, Any]:
-        """Answer thoughtful questions about life, philosophy, etc."""
+    async def _answer_question(self, user_input: str, thinking_steps: List[Dict], context: str = "") -> Dict[str, Any]:
+        """Answer thoughtful questions about life, philosophy, documents, etc."""
         try:
-            system_prompt = """You are LUKTHAN, a wise and thoughtful AI assistant.
+            has_document = bool(context and len(context.strip()) > 50)
+
+            if has_document:
+                system_prompt = """You are LUKTHAN, a wise and intelligent AI assistant that can analyze documents and answer questions about them.
+
+GUIDELINES:
+- You have been given document content - reference it directly in your answers
+- Answer questions based on the actual content of the document
+- If asked to summarize, provide key points from the document
+- If asked to explain, break down complex parts clearly
+- Be accurate and cite specific parts of the document when relevant
+- Be conversational but informative."""
+
+                user_message = f"User asks: {user_input}\n\n--- DOCUMENT CONTENT ---\n{context[:4000]}"
+                print(f"[LUKTHAN] Document Q&A mode - {len(context)} chars")
+            else:
+                system_prompt = """You are LUKTHAN, a wise and thoughtful AI assistant.
 Answer with wisdom, empathy, and insight.
 Be genuine and thoughtful - draw from philosophy, psychology, and human experience.
 Don't be preachy, just be real and helpful.
 Provide a thoughtful, genuine response that could actually help or enlighten someone.
 Keep it conversational but meaningful. Around 2-4 paragraphs."""
+                user_message = user_input
 
             print(f"[LUKTHAN] Calling Claude API for question: {user_input[:50]}...")
 
@@ -826,7 +878,7 @@ Keep it conversational but meaningful. Around 2-4 paragraphs."""
                 model=self.model,
                 max_tokens=2048,
                 system=system_prompt,
-                messages=[{"role": "user", "content": user_input}]
+                messages=[{"role": "user", "content": user_message}]
             )
             message = response.content[0].text
             print(f"[LUKTHAN] SUCCESS! Claude response: {message[:100]}...")

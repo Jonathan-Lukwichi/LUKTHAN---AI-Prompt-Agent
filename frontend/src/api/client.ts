@@ -59,9 +59,9 @@ export const uploadFile = async (file: File): Promise<FileUploadResponse> => {
   return response.data;
 };
 
-export const transcribeVoice = async (audioBlob: Blob): Promise<VoiceTranscriptionResponse> => {
+export const transcribeVoice = async (audioBlob: Blob, extension: string = 'webm'): Promise<VoiceTranscriptionResponse> => {
   const formData = new FormData();
-  formData.append('file', audioBlob, 'recording.wav');
+  formData.append('file', audioBlob, `recording.${extension}`);
 
   const response = await apiClient.post<VoiceTranscriptionResponse>('/voice/transcribe', formData, {
     headers: {
