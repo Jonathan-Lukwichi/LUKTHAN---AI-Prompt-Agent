@@ -122,6 +122,64 @@ export const usePromptAgent = () => {
     [chat]
   );
 
+  // Guided wizard prompt - sends structured data from wizard
+  const sendGuidedPrompt = useCallback(
+    async (prompt: string, context: Record<string, any>) => {
+      setLoading(true);
+      setThinking(true, 'Generating your optimized prompt...');
+      setError(null);
+
+      try {
+        // Add user message showing the wizard selections
+        const userMessage = `[Guided Mode]\n${prompt}`;
+        addMessage({
+          type: 'user',
+          content: userMessage,
+        });
+
+        // Add placeholder agent message
+        const agentMessageId = addAgentThinkingMessage();
+
+        // Build enhanced prompt with context
+        const enhancedInput = buildEnhancedPrompt(prompt, context, settings.domain);
+
+        // Make API call with guided context
+        const response = await sendMessage({
+          user_input: enhancedInput,
+          settings: {
+            ...settings,
+            mode: 'direct', // Use direct mode for final generation
+          },
+          guided_context: context,
+        });
+
+        // Update the agent message with response
+        updateAgentResponse(agentMessageId, response);
+        toast.success('Optimized prompt generated!');
+
+        return response;
+      } catch (err: any) {
+        const errorMessage = err.response?.data?.detail || 'Failed to generate prompt.';
+        setError(errorMessage);
+        toast.error(errorMessage);
+
+        // Remove placeholder on error
+        const messages = useChatStore.getState().messages;
+        if (messages.length > 0 && messages[messages.length - 1].type === 'agent') {
+          useChatStore.setState({
+            messages: messages.slice(0, -1),
+          });
+        }
+
+        return null;
+      } finally {
+        setLoading(false);
+        setThinking(false);
+      }
+    },
+    [settings, addMessage, addAgentThinkingMessage, updateAgentResponse, setLoading, setThinking, setError]
+  );
+
   // Legacy function name
   const regeneratePrompt = regenerate;
 
@@ -134,8 +192,38 @@ export const usePromptAgent = () => {
     handleFileUpload,
     regenerate,
     regeneratePrompt, // Legacy
+    sendGuidedPrompt,
     settings,
   };
 };
+
+// Helper function to build enhanced prompt from wizard context
+function buildEnhancedPrompt(basePrompt: string, context: Record<string, any>, domain: string): string {
+  const domainLabels: Record<string, string> = {
+    coding: 'software development',
+    data_science: 'data science and analytics',
+    ai_builder: 'AI and machine learning',
+    research: 'research and academic writing',
+  };
+
+  const domainContext = domainLabels[domain] || domain;
+
+  return `Create a comprehensive, professional prompt for ${domainContext}.
+
+User Requirements:
+- Project Type: ${context.projectType || 'Not specified'}
+- Tools/Technology: ${context.tools || 'Not specified'}
+- Complexity Level: ${context.complexity || 'Not specified'}
+
+Detailed Description:
+${context.description || basePrompt}
+
+Generate an optimized, detailed prompt that includes:
+1. Clear role definition for the AI
+2. Specific task breakdown
+3. Expected output format
+4. Quality requirements
+5. Any relevant constraints or best practices`;
+}
 
 export default usePromptAgent;
