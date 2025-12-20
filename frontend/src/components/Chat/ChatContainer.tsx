@@ -76,7 +76,7 @@ const ChatContainer = () => {
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto relative z-10">
-        <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+        <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
           <AnimatePresence mode="popLayout">
             {messages.map((message, index) => (
               <motion.div

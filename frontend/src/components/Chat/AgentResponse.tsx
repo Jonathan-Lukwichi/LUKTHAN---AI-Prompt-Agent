@@ -324,7 +324,8 @@ const AgentResponse = ({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-4xl"
+      className="w-full"
+      style={{ maxWidth: '100%' }}
     >
       {/* Thinking Toggle */}
       {finalThinkingSteps.length > 0 && (
@@ -391,10 +392,10 @@ const AgentResponse = ({
               </div>
 
               {/* Prompt Content - Always fully visible */}
-              <div className="bg-bg-primary/50 rounded-xl p-5 border border-border-subtle">
-                <p className="prompt-content">
+              <div className="bg-bg-primary/50 rounded-xl p-4 border border-border-subtle overflow-x-auto">
+                <pre className="prompt-content whitespace-pre-wrap break-words">
                   {response?.optimized_prompt || content}
-                </p>
+                </pre>
               </div>
 
               {/* Collapse/Expand for very long prompts */}
