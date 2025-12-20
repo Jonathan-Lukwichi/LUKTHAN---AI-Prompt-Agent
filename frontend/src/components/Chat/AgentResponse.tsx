@@ -61,7 +61,7 @@ const AgentResponse = ({
 }: AgentResponseProps) => {
   const [copied, setCopied] = useState(false);
   const [showThinking, setShowThinking] = useState(false);
-  const [promptExpanded, setPromptExpanded] = useState(false);
+  const [promptExpanded, setPromptExpanded] = useState(true); // Default to expanded
 
   const handleExport = () => {
     const textToExport = response?.optimized_prompt || response?.response || content;
@@ -324,7 +324,7 @@ const AgentResponse = ({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-3xl"
+      className="w-full max-w-4xl"
     >
       {/* Thinking Toggle */}
       {finalThinkingSteps.length > 0 && (
@@ -335,22 +335,23 @@ const AgentResponse = ({
         />
       )}
 
-      <div className="bg-bg-secondary border border-border-subtle rounded-xl overflow-hidden">
+      <div className="response-card">
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border-subtle">
-          <div className="w-8 h-8 rounded-lg bg-accent-subtle flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-accent" />
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/5">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1">
-            <span className="text-sm font-medium text-text-primary">LUKTHAN</span>
+            <h3 className="text-base font-bold text-text-primary">LUKTHAN</h3>
+            <p className="text-xs text-violet-400">AI Prompt Expert</p>
           </div>
-          <span className="text-xs text-text-muted">{formatTime(timestamp)}</span>
+          <span className="text-xs text-text-muted bg-bg-tertiary/50 px-3 py-1 rounded-full">{formatTime(timestamp)}</span>
         </div>
 
         {/* Response Text */}
         {response?.response && (
-          <div className="px-4 py-3 border-b border-border-subtle">
-            <p className="text-sm text-text-secondary leading-relaxed">
+          <div className="px-5 py-4 border-b border-border-subtle">
+            <p className="text-base text-text-primary leading-relaxed">
               {response.response}
             </p>
           </div>
@@ -359,98 +360,107 @@ const AgentResponse = ({
         {/* Optimized Prompt Card */}
         {(response?.optimized_prompt || content) && (
           <div className="m-4">
-            <div className="bg-bg-tertiary border border-border-subtle rounded-xl overflow-hidden">
+            <div className="prompt-content-box">
               {/* Prompt Header */}
-              <div className="flex items-center justify-between px-4 py-2 bg-bg-hover/50 border-b border-border-subtle">
-                <span className="text-xs font-medium text-accent uppercase tracking-wider">
-                  Optimized Prompt
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleCopy}
-                    className="p-1.5 rounded-md hover:bg-bg-hover transition-colors"
-                    title="Copy to clipboard"
-                  >
-                    {copied ? (
-                      <Check className="w-4 h-4 text-success" />
-                    ) : (
-                      <Copy className="w-4 h-4 text-text-muted hover:text-text-primary" />
-                    )}
-                  </button>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center border border-cyan-500/30">
+                    <Zap className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-sm font-semibold text-cyan-400 uppercase tracking-wider">
+                    Optimized Prompt
+                  </span>
                 </div>
+                <button
+                  onClick={handleCopy}
+                  className="action-btn-primary px-4 py-2 rounded-lg flex items-center gap-2 text-sm"
+                  title="Copy to clipboard"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
               </div>
 
-              {/* Prompt Content */}
-              <div className={`p-4 ${!promptExpanded ? 'max-h-64 overflow-hidden relative' : ''}`}>
-                <pre className="prompt-content text-text-primary">
+              {/* Prompt Content - Always fully visible */}
+              <div className="bg-bg-primary/50 rounded-xl p-5 border border-border-subtle">
+                <p className="prompt-content">
                   {response?.optimized_prompt || content}
-                </pre>
-                {!promptExpanded && (
-                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-bg-tertiary to-transparent pointer-events-none" />
-                )}
+                </p>
               </div>
 
-              {/* Expand Toggle */}
-              <button
-                onClick={() => setPromptExpanded(!promptExpanded)}
-                className="w-full py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors flex items-center justify-center gap-1 border-t border-border-subtle"
-              >
-                {promptExpanded ? (
-                  <>
-                    <ChevronUp className="w-3 h-3" />
-                    Collapse
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="w-3 h-3" />
-                    Expand Full Prompt
-                  </>
-                )}
-              </button>
+              {/* Collapse/Expand for very long prompts */}
+              {(response?.optimized_prompt?.length || content.length) > 500 && (
+                <button
+                  onClick={() => setPromptExpanded(!promptExpanded)}
+                  className="w-full mt-3 py-2 text-xs text-text-secondary hover:text-cyan-400 transition-colors flex items-center justify-center gap-1"
+                >
+                  {promptExpanded ? (
+                    <>
+                      <ChevronUp className="w-3 h-3" />
+                      Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-3 h-3" />
+                      Show More
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         )}
 
         {/* Metadata Bar */}
         {response && (
-          <div className="px-4 py-3 border-t border-border-subtle bg-bg-tertiary/30 flex flex-wrap items-center gap-2">
-            {/* Domain Badge */}
-            <span className="badge">
-              <DomainIcon className="w-3 h-3" />
-              {response.domain?.replace('_', ' ')}
-            </span>
+          <div className="px-5 py-4 border-t border-border-subtle bg-gradient-to-r from-bg-tertiary/50 to-bg-secondary/30">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Domain Badge */}
+              <div className="meta-tag">
+                <DomainIcon className="w-3.5 h-3.5 text-violet-400" />
+                <span>{response.domain?.replace('_', ' ')}</span>
+              </div>
 
-            {/* Quality Score */}
-            {response.quality_score && (
-              <span className={`badge ${response.quality_score >= 80 ? 'badge-success' : 'badge-accent'}`}>
-                {response.quality_score}/100
-              </span>
-            )}
+              {/* Quality Score */}
+              {response.quality_score && (
+                <div className="quality-badge">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{response.quality_score}/100</span>
+                </div>
+              )}
 
-            {/* Key Topics */}
-            {response.metadata?.key_topics?.slice(0, 2).map((topic, i) => (
-              <span key={i} className="badge text-xs">
-                {topic}
-              </span>
-            ))}
+              {/* Key Topics */}
+              {response.metadata?.key_topics?.slice(0, 3).map((topic, i) => (
+                <div key={i} className="meta-tag text-xs">
+                  {topic}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Suggestions */}
         {response?.suggestions && response.suggestions.length > 0 && (
-          <div className="px-4 py-3 border-t border-border-subtle">
-            <div className="flex items-center gap-2 mb-2 text-text-muted">
-              <Lightbulb className="w-3.5 h-3.5" />
-              <span className="text-xs font-medium uppercase tracking-wider">Suggestions</span>
+          <div className="px-5 py-4 border-t border-border-subtle">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+              </div>
+              <span className="text-sm font-semibold text-amber-400 uppercase tracking-wider">Pro Tips</span>
             </div>
-            <ul className="space-y-1">
+            <ul className="suggestions-list">
               {response.suggestions.map((suggestion, index) => (
-                <li
-                  key={index}
-                  className="text-sm text-text-secondary flex items-start gap-2"
-                >
-                  <span className="text-accent mt-0.5">-</span>
-                  <span>{suggestion}</span>
+                <li key={index} className="text-sm text-text-secondary">
+                  {suggestion}
                 </li>
               ))}
             </ul>
@@ -458,16 +468,16 @@ const AgentResponse = ({
         )}
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 px-4 py-3 border-t border-border-subtle">
-          <button onClick={handleCopy} className="btn btn-secondary btn-sm">
+        <div className="action-buttons">
+          <button onClick={handleCopy} className="action-btn action-btn-primary">
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? 'Copied!' : 'Copy Prompt'}
           </button>
-          <button onClick={handleExport} className="btn btn-secondary btn-sm">
+          <button onClick={handleExport} className="action-btn">
             <Download className="w-4 h-4" />
             Export
           </button>
-          <button onClick={handleRegenerate} className="btn btn-ghost btn-sm">
+          <button onClick={handleRegenerate} className="action-btn">
             <RefreshCw className="w-4 h-4" />
             Regenerate
           </button>
