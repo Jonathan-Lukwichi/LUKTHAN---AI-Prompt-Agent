@@ -259,7 +259,27 @@ class IntelligentAgent:
             result["thinking"] = thinking_steps
             return result
 
-        # Step 4: Process based on intent (DIRECT mode or conversation)
+        # Step 4: DIRECT MODE - Always optimize prompts unless it's a simple greeting
+        if mode == "direct":
+            # Check if it's just a greeting (hi, hello, thanks, etc.)
+            simple_greetings = ["hi", "hello", "hey", "thanks", "thank you", "bye", "goodbye"]
+            is_simple_greeting = user_input.lower().strip() in simple_greetings or len(user_input.split()) <= 3 and any(g in user_input.lower() for g in simple_greetings)
+
+            if is_simple_greeting:
+                # Only for simple greetings, have a brief conversation
+                result = await self._have_conversation(user_input, thinking_steps, context)
+                result["intent"] = "conversation"
+                result["thinking"] = thinking_steps
+                return result
+            else:
+                # DIRECT MODE: Always optimize prompts without asking questions
+                print(f"[LUKTHAN] DIRECT MODE - Optimizing prompt directly (no questions)")
+                result = await self._optimize_prompt(user_input, context, settings, thinking_steps)
+                result["intent"] = "prompt_optimization"
+                result["thinking"] = thinking_steps
+                return result
+
+        # Step 5: Fallback for any other mode - use intent-based routing
         if intent == "prompt_optimization":
             # User wants to optimize a prompt
             result = await self._optimize_prompt(user_input, context, settings, thinking_steps)
